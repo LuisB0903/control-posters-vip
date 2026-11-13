@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Reglas de seguridad de Firestore para Control de Pósters VIP.
+// Copia TODO este archivo en: Firebase Console → Firestore Database → Reglas → Publicar.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+    function adminPath() {
+      return /databases/$(database)/documents/admins/$(request.auth.uid);
+    }
+    function isAdmin() {
+      return signedIn() && exists(adminPath()) && get(adminPath()).data.activo == true;
+    }
+    function setupPath() {
+      return /databases/$(database)/documents/config/setup;
+    }
+
+    // Valida que un cinepolito pueda apartar un póster (sin iniciar sesión)
+    function apartadoValido(apartadoId) {
+      let d = request.resource.data;
+      let empPath = /databases/$(database)/documents/empleados/$(d.empleadoId);
+      let mat = get(/databases/$(database)/documents/materiales/$(d.materialId)).data;
+      return d.keys().hasOnly(['materialId', 'peliculaId', 'titulo', 'version', 'empleadoId', 'empleadoNombre', 'creadoEn', 'estado'])
+        && d.keys().hasAll(['materialId', 'peliculaId', 'titulo', 'version', 'empleadoId', 'empleadoNombre', 'creadoEn', 'estado'])
+        && apartadoId == d.materialId + '_' + d.empleadoId
+        && d.estado == 'apartado'
+        && d.creadoEn == request.time
+        && exists(empPath)
+        && get(empPath).data.activo == true
+        && get(empPath).data.nombre == d.empleadoNombre
+        && mat.cinepolitos.activo == true
+        && mat.cinepolitos.hasta > request.time
+        && d.titulo == mat.titulo
+        && d.version == mat.version
+        && d.peliculaId == mat.peliculaId;
+    }
+
+    // ── Configuración ──
+    match /config/setup {
+      allow read: if true;
+      // Solo se puede crear una vez (primer administrador)
+      allow create: if signedIn() && !exists(setupPath()) && existsAfter(adminPath());
+    }
+    match /config/{docId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ── Administradores ──
+    match /admins/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin()
+        || (signedIn() && request.auth.uid == uid
+            && !exists(setupPath())
+            && getAfter(setupPath()).data.por == uid);
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Inventario (lectura pública para la página de cinepolitos) ──
+    match /peliculas/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /materiales/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── Empleados: se puede consultar un ID, pero no listar a todos ──
+    match /empleados/{id} {
+      allow get: if true;
+      allow list, write: if isAdmin();
+    }
+
+    // ── Apartados: los cinepolitos solo pueden crear (no editar ni cancelar) ──
+    match /apartados/{apartadoId} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin() || apartadoValido(apartadoId);
+      allow update, delete: if isAdmin();
+    }
+
+    // ── Solo administración ──
+    match /entregas/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /semanas/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /movimientos/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.adminUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+  }
+}
