@@ -4,7 +4,7 @@ Sitio web para controlar todo el material publicitario del conjunto:
 
 - **Inventario** de pósters, standees, publicidad del cine, banners (y las categorías que agregues), con **versión** y **cantidad de piezas iguales**. Cada pieza tiene su ubicación: Bodega, Taquilla, Lobby, Gerencia, Pasillo 1-3, Pasillo 4-10 o Sala #.
 - **Imágenes automáticas** desde TMDB (todas las versiones del póster), con respaldo de Google Imágenes, pegar un enlace o tomar una foto.
-- **Sugeridor semanal**: lee el PDF del *Cronograma de Punto de Venta*, arma la taquilla con los estrenos (si no hay póster, pasa al siguiente; si faltan, rellena con taquilleras), coloca las salas, el lobby y los pasillos sin repetir pósters, y te da la **lista de movimientos** ("quitar X del Pasillo 4-10 → llevar a Taquilla").
+- **Sugeridor semanal**: lee el PDF del _Cronograma de Punto de Venta_, arma la taquilla con los estrenos (si no hay póster, pasa al siguiente; si faltan, rellena con taquilleras), coloca las salas, el lobby y los pasillos sin repetir pósters, y te da la **lista de movimientos** ("quitar X del Pasillo 4-10 → llevar a Taquilla").
 - **Página para cinepolitos**: apartan pósters de películas que ya salieron, con su ID de empleado.
 - **Entregas** con constancia imprimible para firmar (Gerente General y empleado).
 - **Bitácora**: cada movimiento queda registrado con el administrador que lo hizo.
@@ -29,14 +29,14 @@ Sitio web para controlar todo el material publicitario del conjunto:
 
 ## 1. Lo que necesitas
 
-| Herramienta | Para qué | Cómo comprobar |
-|---|---|---|
-| **Node.js 18 o más nuevo** | Instalar y compilar el proyecto | En una terminal: `node -v` |
-| **Git** | Subir el código a GitHub | `git --version` |
-| **Cuenta de GitHub** | Hospedar el sitio (GitHub Pages) | — |
-| **Cuenta de Google** (la personal sirve) | Firebase: la base de datos compartida | — |
-| **Cuenta de TMDB** (gratis) | Búsqueda automática de pósters | — |
-| **Visual Studio Code** (recomendado) | Editar archivos | — |
+| Herramienta                              | Para qué                              | Cómo comprobar             |
+| ---------------------------------------- | ------------------------------------- | -------------------------- |
+| **Node.js 18 o más nuevo**               | Instalar y compilar el proyecto       | En una terminal: `node -v` |
+| **Git**                                  | Subir el código a GitHub              | `git --version`            |
+| **Cuenta de GitHub**                     | Hospedar el sitio (GitHub Pages)      | —                          |
+| **Cuenta de Google** (la personal sirve) | Firebase: la base de datos compartida | —                          |
+| **Cuenta de TMDB** (gratis)              | Búsqueda automática de pósters        | —                          |
+| **Visual Studio Code** (recomendado)     | Editar archivos                       | —                          |
 
 > ¿Por qué Firebase? GitHub Pages solo sirve páginas, no guarda datos. Para que los cinepolitos aparten desde su celular y tú lo veas en el panel, se necesita una base de datos en línea. Firebase es de Google, el plan gratuito (Spark) alcanza de sobra para este uso y **el sitio sigue hospedado en GitHub Pages**.
 
@@ -97,7 +97,7 @@ const firebaseConfig = {
   projectId: "control-posters-vip",
   storageBucket: "control-posters-vip.appspot.com",
   messagingSenderId: "1234567890",
-  appId: "1:1234567890:web:abcdef..."
+  appId: "1:1234567890:web:abcdef...",
 };
 ```
 
@@ -125,6 +125,7 @@ const firebaseConfig = {
 3. **Publicar**.
 
 Estas reglas hacen que:
+
 - Solo los administradores activos puedan modificar el inventario, ver apartados, empleados y la bitácora.
 - Los cinepolitos (sin iniciar sesión) solo puedan **ver** los pósters publicados y **crear** un apartado con un ID de empleado que exista, una sola vez por póster, sin poder cancelarlo ni ver cuántos lo apartaron.
 
@@ -146,7 +147,7 @@ TMDB (The Movie Database) es una base de datos gratuita de películas con póste
 1. Crea una cuenta en <https://www.themoviedb.org/signup> y confirma tu correo.
 2. Entra a tu perfil → **Configuración (Settings) → API**.
 3. Solicita una clave: tipo **Developer** / uso **personal**. Llena el formulario (nombre de la app: "Control de pósters", URL: tu futura página de GitHub o `http://localhost`).
-4. Copia la **API Key** (32 caracteres) *o* el **API Read Access Token** (el largo). Cualquiera de los dos funciona.
+4. Copia la **API Key** (32 caracteres) _o_ el **API Read Access Token** (el largo). Cualquiera de los dos funciona.
 5. La pegarás dentro del sistema en **Configuración → Búsqueda de pósters (TMDB)** (paso 7). No va en el código.
 
 ---
@@ -269,6 +270,7 @@ Los cinepolitos entran a la página, escriben su **ID de empleado**, eligen los 
 ### 8.3 Entregar y generar la constancia
 
 **Apartados y entregas**:
+
 - **Apartados**: tabla con filtros por cinepolito, póster, estado y fecha límite; puedes agrupar y **descargar CSV**.
 - **Por póster**: quién apartó cada uno, piezas disponibles y fecha. Clic en un nombre → te lleva a entregar.
 - **Entregar**: elige al cinepolito, marca los pósters que se le dan → **Entregar y generar constancia** → se abre la impresión. Elige **"Guardar como PDF"** o imprime directamente. La constancia lleva: nombre del conjunto, fecha de entrega, ID y nombre del empleado, la lista de pósters y las líneas de firma de la Gerente General (con nombre y cargo) y del empleado.
@@ -280,17 +282,25 @@ Los cinepolitos entran a la página, escriben su **ID de empleado**, eligen los 
 ## 9. Cómo decide el sugeridor
 
 **Taquilla (4)**
+
 1. Toma la lista **Semana de estrenos** en orden. Si no hay póster de una película (o no se exhibe), pasa a la siguiente.
 2. Si no se completan los 4, rellena con películas marcadas como **Taquillera** que siguen **En cartelera**.
 3. Si la película está en la lista de **Garantía Cinépolis**, avisa que lleve el sello (solo aplica en taquilla).
 4. Si el póster estaba en un pasillo, el movimiento dice exactamente de qué pasillo se quita.
 
 **Salas** (1 cartelera por sala)
-- Va el póster de la película de esa sala.
-- Si una película se **repite en varias salas y no comparte sala** con otra película, esas salas llevan **publicidad del cine** (en Configuración puedes cambiarlo a "póster en la primera sala y publicidad en las demás").
-- Si no hay póster, se coloca publicidad del cine y se avisa.
+
+- **Sala con una sola película:** lleva el póster de esa película. Si la película está sola en varias salas (incluso del mismo pasillo), lleva póster en todas mientras alcancen las piezas; donde ya no alcance, va publicidad del cine.
+- **Sala compartida:** lleva el póster de la **otra** película (la que no se repite en otras salas). Si no hay de esa, intenta con las demás películas de la sala.
+- Las salas con una sola película se surten primero. Ejemplo con _Yo Soy Rocky_ sola en sala 4 y compartida en sala 5:
+  - Hay póster de las dos → sala 4: Rocky · sala 5: la otra película.
+  - No alcanza Rocky para ambas → igual: sala 4 Rocky, sala 5 la otra.
+  - No hay de Rocky → sala 4: publicidad del cine · sala 5: la otra.
+  - No hay de ninguna → publicidad del cine en ambas.
+- La regla de "no repetir en el mismo pasillo" **no aplica a las salas**.
 
 **Lobby (2) y pasillos**
+
 - Solo entran películas **Próximamente**. Quedan fuera las que ya están en cartelera, las que se estrenan esta semana y las que están en salas.
 - Orden de preferencia (no estricto): Prioridades VIP → Apoyo especial → Cajas de luz lobby y pasillos → el resto por fecha de estreno.
 - **Nunca se repite el mismo póster en el mismo pasillo** (las versiones de una misma película cuentan como el mismo póster).
@@ -299,6 +309,7 @@ Los cinepolitos entran a la página, escriben su **ID de empleado**, eligen los 
 - Siempre se usa la **versión más nueva**.
 
 **Standees**
+
 - Grandes: solo los de la lista **Standees básicos** del cronograma, en orden, a taquilla (hasta el número configurado).
 - Pequeños: primero a taquilla (cantidad configurada) y los restantes al lobby.
 
@@ -340,17 +351,17 @@ control-posters-vip/
 
 ## 11. Problemas comunes
 
-| Problema | Solución |
-|---|---|
-| Pantalla "Falta configurar Firebase" | No pegaste la configuración en `src/firebase-config.ts`. |
-| Al iniciar sesión: `auth/unauthorized-domain` | Agrega `TU-USUARIO.github.io` en Authentication → Dominios autorizados (paso 3.6). |
-| "No tienes permiso para esta acción" | Revisa que pegaste y **publicaste** `firestore.rules`, y que tu administrador esté activo. |
-| `auth/operation-not-allowed` | No habilitaste Correo/contraseña (paso 3.3). |
-| La página publicada sale en blanco | Revisa la pestaña **Actions** de GitHub: si hay ❌, abre el error. Asegúrate de que Pages use **GitHub Actions** como fuente. |
-| "La clave de TMDB no es válida" | Copia de nuevo la API Key o el token desde themoviedb.org → Settings → API. |
-| El lector del cronograma no encontró nada | Usa **Capturar listas a mano**, o revisa "Ver texto leído del PDF" para ver qué detectó. |
-| Un cinepolito dice "No encontramos ese ID" | Importa el PDF de horarios más reciente o agrégalo a mano en **Empleados**. |
-| Olvidaste la contraseña de un administrador | Otro administrador lo desactiva y crea uno nuevo con otro ID. (Para borrar el usuario viejo: Firebase → Authentication → Usuarios.) |
+| Problema                                      | Solución                                                                                                                            |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Pantalla "Falta configurar Firebase"          | No pegaste la configuración en `src/firebase-config.ts`.                                                                            |
+| Al iniciar sesión: `auth/unauthorized-domain` | Agrega `TU-USUARIO.github.io` en Authentication → Dominios autorizados (paso 3.6).                                                  |
+| "No tienes permiso para esta acción"          | Revisa que pegaste y **publicaste** `firestore.rules`, y que tu administrador esté activo.                                          |
+| `auth/operation-not-allowed`                  | No habilitaste Correo/contraseña (paso 3.3).                                                                                        |
+| La página publicada sale en blanco            | Revisa la pestaña **Actions** de GitHub: si hay ❌, abre el error. Asegúrate de que Pages use **GitHub Actions** como fuente.       |
+| "La clave de TMDB no es válida"               | Copia de nuevo la API Key o el token desde themoviedb.org → Settings → API.                                                         |
+| El lector del cronograma no encontró nada     | Usa **Capturar listas a mano**, o revisa "Ver texto leído del PDF" para ver qué detectó.                                            |
+| Un cinepolito dice "No encontramos ese ID"    | Importa el PDF de horarios más reciente o agrégalo a mano en **Empleados**.                                                         |
+| Olvidaste la contraseña de un administrador   | Otro administrador lo desactiva y crea uno nuevo con otro ID. (Para borrar el usuario viejo: Firebase → Authentication → Usuarios.) |
 
 ---
 
