@@ -1,14 +1,14 @@
-import type { Timestamp } from 'firebase/firestore';
+import type { Timestamp } from "firebase/firestore";
 
 /* ───────── Ubicaciones ───────── */
 export type ZonaTipo =
-  | 'bodega'
-  | 'taquilla'
-  | 'lobby'
-  | 'gerencia'
-  | 'pasillo13'
-  | 'pasillo410'
-  | 'sala';
+  | "bodega"
+  | "taquilla"
+  | "lobby"
+  | "gerencia"
+  | "pasillo13"
+  | "pasillo410"
+  | "sala";
 
 export interface Ubicacion {
   tipo: ZonaTipo;
@@ -16,7 +16,7 @@ export interface Ubicacion {
 }
 
 /* ───────── Inventario ───────── */
-export type EstadoPieza = 'activa' | 'entregada' | 'desechada';
+export type EstadoPieza = "activa" | "entregada" | "desechada";
 
 export interface Pieza {
   n: number; // número de pieza dentro del material (1, 2, 3…)
@@ -27,11 +27,11 @@ export interface Pieza {
 
 /** Para qué se usa una categoría dentro del sugeridor */
 export type RolCategoria =
-  | 'cartelera' // póster de película (taquilla, salas, lobby, pasillos)
-  | 'publicidad' // publicidad del cine (relleno de carteleras)
-  | 'standee_grande'
-  | 'standee_chico'
-  | 'ninguno'; // se controla pero el sugeridor no lo mueve (banners, etc.)
+  | "cartelera" // póster de película (taquilla, salas, lobby, pasillos)
+  | "publicidad" // publicidad del cine (relleno de carteleras)
+  | "standee_grande"
+  | "standee_chico"
+  | "ninguno"; // se controla pero el sugeridor no lo mueve (banners, etc.)
 
 export interface Categoria {
   id: string;
@@ -39,7 +39,7 @@ export interface Categoria {
   rol: RolCategoria;
 }
 
-export type EstadoPelicula = 'proximamente' | 'cartelera' | 'salio';
+export type EstadoPelicula = "proximamente" | "cartelera" | "salio";
 
 export interface Pelicula {
   id: string;
@@ -88,7 +88,11 @@ export interface Admin {
 }
 
 /* ───────── Cinepolitos ───────── */
-export type EstadoApartado = 'apartado' | 'entregado' | 'no_entregado';
+export type EstadoApartado =
+  | "apartado"
+  | "seleccionado"
+  | "entregado"
+  | "no_entregado";
 
 export interface Apartado {
   id: string; // materialId_empleadoId
@@ -100,6 +104,11 @@ export interface Apartado {
   empleadoNombre: string;
   creadoEn: Timestamp | null;
   estado: EstadoApartado;
+}
+
+/** Aviso público por empleado: lo que ya se le seleccionó y debe recoger */
+export interface AvisoEmpleado {
+  pendientes: { titulo: string; version: number; categoria: string }[];
 }
 
 export interface ItemEntrega {
@@ -124,7 +133,7 @@ export interface Entrega {
 }
 
 /* ───────── Configuración ───────── */
-export type ReglaRepetida = 'publicidad_todas' | 'poster_primera';
+export type ReglaRepetida = "publicidad_todas" | "poster_primera";
 
 export interface ConfigGeneral {
   conjunto: string;
@@ -142,13 +151,14 @@ export interface ConfigGeneral {
   standeesChicosTaquilla: number;
   standeesChicosLobby: number; // 0 = sin límite
   reglaRepetida: ReglaRepetida;
+  entregaContacto: string; // quiénes entregan, se muestra a los cinepolitos
 }
 
 export const CONFIG_DEFAULT: ConfigGeneral = {
-  conjunto: 'C. VIP Galerías Santa Anita',
-  gerenteNombre: '',
-  gerenteCargo: 'Gerente General',
-  tmdbKey: '',
+  conjunto: "C. VIP Galerías Santa Anita",
+  gerenteNombre: "",
+  gerenteCargo: "Gerente General",
+  tmdbKey: "",
   pasillo13Total: 27,
   pasillo13Salas: [1, 2, 3],
   pasillo410Total: 43,
@@ -159,15 +169,16 @@ export const CONFIG_DEFAULT: ConfigGeneral = {
   standeesGrandesTaquilla: 4,
   standeesChicosTaquilla: 2,
   standeesChicosLobby: 0,
-  reglaRepetida: 'publicidad_todas',
+  reglaRepetida: "publicidad_todas",
+  entregaContacto: "Atziri, Andre o Luis",
 };
 
 export const CATEGORIAS_DEFAULT: Categoria[] = [
-  { id: 'poster', nombre: 'Póster', rol: 'cartelera' },
-  { id: 'publicidad', nombre: 'Publicidad del cine', rol: 'publicidad' },
-  { id: 'standee', nombre: 'Standee grande', rol: 'standee_grande' },
-  { id: 'standee_chico', nombre: 'Standee pequeño', rol: 'standee_chico' },
-  { id: 'banner', nombre: 'Banner', rol: 'ninguno' },
+  { id: "poster", nombre: "Póster", rol: "cartelera" },
+  { id: "publicidad", nombre: "Publicidad del cine", rol: "publicidad" },
+  { id: "standee", nombre: "Standee grande", rol: "standee_grande" },
+  { id: "standee_chico", nombre: "Standee pequeño", rol: "standee_chico" },
+  { id: "banner", nombre: "Banner", rol: "ninguno" },
 ];
 
 /* ───────── Semanas / sugeridor ───────── */
@@ -202,11 +213,11 @@ export interface SalaSemana {
   peliculas: string[];
 }
 
-export type TipoAsignacion = 'pelicula' | 'publicidad' | 'vacio';
+export type TipoAsignacion = "pelicula" | "publicidad" | "vacio";
 
 export interface Asignacion {
   zona: Ubicacion;
-  grupo: 'carteleras' | 'standees';
+  grupo: "carteleras" | "standees";
   tipo: TipoAsignacion;
   materialId: string | null;
   piezaN: number | null;
@@ -246,7 +257,7 @@ export interface Semana {
   listas: ListasSemana;
   salas: SalaSemana[];
   noRepetir: boolean;
-  estado: 'borrador' | 'aplicada';
+  estado: "borrador" | "aplicada";
   resultado: ResultadoSugerencia | null;
   aplicadaPor: string | null;
   aplicadaEn: Timestamp | null;

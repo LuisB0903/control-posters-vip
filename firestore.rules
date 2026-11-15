@@ -48,6 +48,13 @@ service cloud.firestore {
     match /config/{docId} {
       allow read, write: if isAdmin();
     }
+    // Categorías y datos públicos (quién entrega): los ve la página de cinepolitos
+    match /config/categorias {
+      allow read: if true;
+    }
+    match /config/publico {
+      allow read: if true;
+    }
 
     // ── Administradores ──
     match /admins/{uid} {
@@ -83,6 +90,12 @@ service cloud.firestore {
       allow list: if isAdmin();
       allow create: if isAdmin() || apartadoValido(apartadoId);
       allow update, delete: if isAdmin();
+    }
+
+    // ── Avisos para cinepolitos: "tienes material por recoger" (se consulta por ID, no se lista) ──
+    match /avisos/{empleadoId} {
+      allow get: if true;
+      allow list, write: if isAdmin();
     }
 
     // ── Solo administración ──

@@ -265,16 +265,29 @@ Haz esto una sola vez, en este orden:
 
 En **Inventario**, cambia el estado de la película a **"Salió de cartelera"**. Sus materiales se publican en la página de cinepolitos con la **fecha de entrega o desecho: un mes exacto** después.
 
-Los cinepolitos entran a la página, escriben su **ID de empleado**, eligen los pósters y confirman. **Cada póster solo una vez, sin poder cancelar y sin ver cuántos lo apartaron.**
+Los cinepolitos entran a la página, escriben su **ID de empleado**, eligen el material y confirman. Cada tarjeta indica qué es (**Póster, Standee grande, Standee pequeño…**). **Cada uno solo una vez, sin poder cancelar y sin ver cuántos lo apartaron.**
 
-### 8.3 Entregar y generar la constancia
+### 8.3 Seleccionar, entregar y generar la constancia
+
+Estados de un apartado:
+
+| Estado           | Qué significa                                   | Qué ve el cinepolito                                                                                              |
+| ---------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| **Apartado**     | Lo pidió; aún no se decide                      | "Ya lo apartaste"                                                                                                 |
+| **Seleccionado** | Ustedes decidieron dárselo; falta que lo recoja | Al poner su ID: aviso _"Tienes un material por ser entregado… Acércate con Atziri, Andre o Luis para su entrega"_ |
+| **Entregado**    | Ya se le dio y firmó                            | "Ya se te entregó"                                                                                                |
+| **No entregado** | No se le dio (o se desechó)                     | —                                                                                                                 |
+
+Las personas del aviso se cambian en **Configuración → Quién entrega el material**.
+
+**Al entregar, la pieza sale del inventario automáticamente** (queda en el historial y en la constancia). Si ya no quedan piezas, el material desaparece de la página de cinepolitos. Lo único manual es **desechar**.
 
 **Apartados y entregas**:
 
 - **Apartados**: tabla con filtros por cinepolito, póster, estado y fecha límite; puedes agrupar y **descargar CSV**.
 - **Por póster**: quién apartó cada uno, piezas disponibles y fecha. Clic en un nombre → te lleva a entregar.
-- **Entregar**: elige al cinepolito, marca los pósters que se le dan → **Entregar y generar constancia** → se abre la impresión. Elige **"Guardar como PDF"** o imprime directamente. La constancia lleva: nombre del conjunto, fecha de entrega, ID y nombre del empleado, la lista de pósters y las líneas de firma de la Gerente General (con nombre y cargo) y del empleado.
-- Cuando pasa la fecha, **Desechar restantes**: marca las piezas que quedan como desechadas y los apartados sin entregar como "No entregado".
+- **Entregar**: elige al cinepolito y marca su material. **★ Marcar como seleccionado** le activa el aviso en la página. Cuando venga, **Entregar y generar constancia** (los seleccionados ya vienen marcados) → se abre la impresión. Elige **"Guardar como PDF"** o imprime directamente. La constancia lleva: nombre del conjunto, fecha de entrega, ID y nombre del empleado, la lista de pósters y las líneas de firma de la Gerente General (con nombre y cargo) y del empleado.
+- Cuando pasa la fecha, **Desechar restantes** (manual): marca las piezas que quedan como desechadas y los apartados abiertos (apartados o seleccionados) como "No entregado".
 - **Entregas realizadas**: historial con botón para reimprimir.
 
 ---

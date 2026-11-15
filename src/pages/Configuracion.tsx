@@ -109,6 +109,16 @@ export default function Configuracion() {
                 onChange={(e) => setC({ ...c, gerenteCargo: e.target.value })}
               />
             </label>
+            <label className="campo">
+              <span>Quién entrega el material a los cinepolitos</span>
+              <input
+                value={c.entregaContacto}
+                onChange={(e) =>
+                  setC({ ...c, entregaContacto: e.target.value })
+                }
+              />
+              <small>Sale en el aviso: "Acércate con … para su entrega"</small>
+            </label>
             <button
               className="btn btn-primario"
               onClick={() => guardar("Datos del conjunto")}
