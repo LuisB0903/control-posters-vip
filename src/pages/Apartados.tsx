@@ -77,7 +77,65 @@ export default function Apartados() {
 function ListaApartados() {
   const d = useData();
   const quien = useQuien();
-  const { toast } = useUI();
+  const { toast, confirmar, imprimir } = useUI();
+
+  /** ¿Existe una entrega real (con constancia) de este apartado? */
+  const tieneEntrega = (a: Apartado) =>
+    d.entregas.some(
+      (e) =>
+        e.empleadoId === a.empleadoId &&
+        e.items.some((i) => i.materialId === a.materialId),
+    );
+
+  const cambiarEstado = async (a: Apartado, estado: EstadoApartado) => {
+    if (estado !== "entregado") {
+      return cambiarEstadoApartado(quien, a, estado, d.apartados, nombreCat)
+        .then(() => toast("Apartado actualizado"))
+        .catch((er) => toast(errorTexto(er), "error"));
+    }
+    // "Entregado" = entrega completa: registra la entrega, saca la pieza del inventario y genera la constancia
+    const ok = await confirmar({
+      titulo: "Entregar " + nombreCat(a.materialId).toLowerCase(),
+      mensaje: (
+        <>
+          Se registrará la entrega de{" "}
+          <b>
+            {a.titulo} v{a.version}
+          </b>{" "}
+          a <b>{a.empleadoNombre}</b> (ID {a.empleadoId}), la pieza saldrá del
+          inventario y se abrirá la constancia para firmar.
+        </>
+      ),
+      aceptar: "Entregar e imprimir",
+    });
+    if (!ok) return;
+    try {
+      const e = await entregarPosters(
+        quien,
+        d.config,
+        { id: a.empleadoId, nombre: a.empleadoNombre },
+        [a],
+        d.materiales,
+        d.categorias,
+        d.apartados,
+      );
+      toast("Entrega registrada");
+      imprimir(
+        <HojaEntrega
+          conjunto={e.conjunto}
+          fecha={e.fecha}
+          empleadoId={e.empleadoId}
+          empleadoNombre={e.empleadoNombre}
+          items={e.items}
+          gerenteNombre={e.gerenteNombre}
+          gerenteCargo={e.gerenteCargo}
+          folio={e.id}
+        />,
+      );
+    } catch (er) {
+      toast(errorTexto(er), "error");
+    }
+  };
   const [q, setQ] = useState("");
   const [fMaterial, setFMaterial] = useState("todos");
   const [fEstado, setFEstado] = useState<"todos" | "abiertos" | EstadoApartado>(
@@ -310,16 +368,14 @@ function ListaApartados() {
                           className={"compacto"}
                           style={{ width: "auto" }}
                           value={a.estado}
+                          disabled={a.estado === "entregado" && tieneEntrega(a)}
+                          title={
+                            a.estado === "entregado" && tieneEntrega(a)
+                              ? "Ya se entregó (ver Entregas realizadas)"
+                              : ""
+                          }
                           onChange={(e) =>
-                            cambiarEstadoApartado(
-                              quien,
-                              a,
-                              e.target.value as EstadoApartado,
-                              d.apartados,
-                              nombreCat,
-                            )
-                              .then(() => toast("Apartado actualizado"))
-                              .catch((er) => toast(errorTexto(er), "error"))
+                            cambiarEstado(a, e.target.value as EstadoApartado)
                           }
                         >
                           {(Object.keys(ESTADO_TXT) as EstadoApartado[]).map(
