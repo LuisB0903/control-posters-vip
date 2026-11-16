@@ -14,6 +14,7 @@ import { db } from "../firebase";
 import {
   BotonTema,
   Cargando,
+  Icono,
   Modal,
   Poster,
   useUI,
@@ -38,6 +39,7 @@ interface PosterPublico {
   version: number;
   imagenUrl: string | null;
   hasta: Date;
+  piezas: number;
 }
 
 /** Página pública: los cinepolitos apartan pósters de películas que ya salieron de cartelera */
@@ -56,6 +58,8 @@ export default function Cinepolitos() {
   );
   const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_DEFAULT);
   const [contacto, setContacto] = useState(CONFIG_DEFAULT.entregaContacto);
+  const [conjunto, setConjunto] = useState(CONFIG_DEFAULT.conjunto);
+  const [filtroCat, setFiltroCat] = useState("todas");
   const [aviso, setAviso] = useState<AvisoEmpleado | null>(null);
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [confirmando, setConfirmando] = useState(false);
@@ -75,6 +79,7 @@ export default function Cinepolitos() {
       .then((s) => {
         if (s.exists() && s.data().entregaContacto)
           setContacto(s.data().entregaContacto);
+        if (s.exists() && s.data().conjunto) setConjunto(s.data().conjunto);
       })
       .catch(() => {});
   }, []);
@@ -110,6 +115,9 @@ export default function Cinepolitos() {
               version: m.version,
               imagenUrl: m.imagenUrl || null,
               hasta,
+              piezas: m.piezas.filter(
+                (p: { estado: string }) => p.estado === "activa",
+              ).length,
             });
         });
         lista.sort(
@@ -241,208 +249,340 @@ export default function Cinepolitos() {
   };
 
   const visibles = useMemo(
-    () => (posters || []).filter((p) => contiene(p.titulo, busca)),
-    [posters, busca],
+    () =>
+      (posters || []).filter(
+        (p) =>
+          contiene(p.titulo, busca) &&
+          (filtroCat === "todas" || p.categoriaId === filtroCat),
+      ),
+    [posters, busca, filtroCat],
   );
+  const categoriasPresentes = categorias
+    .map((c) => ({
+      c,
+      n: (posters || []).filter((p) => p.categoriaId === c.id).length,
+    }))
+    .filter((x) => x.n > 0);
+  const diasPara = (f: Date) =>
+    Math.max(0, Math.ceil((f.getTime() - Date.now()) / 86400000));
+  const iniciales = (n: string) =>
+    n
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((x) => x[0])
+      .join("");
 
   return (
     <div className="publico">
-      <header className="publico-cab">
-        <div className="publico-cab-in">
-          <div
-            className="marca-logo"
-            style={{ width: 38, height: 38, fontSize: "1.1rem" }}
-          >
-            VIP
+      <div className="portal">
+        {/* ── Encabezado ── */}
+        <header className="portal-cab">
+          <div className="portal-marca">
+            <span className="marca-logo">
+              <Icono n="theaters" relleno />
+            </span>
+            <div style={{ minWidth: 0 }}>
+              <div className="portal-nombre">
+                {conjunto}{" "}
+                <span className="etiqueta-vip">Portal cinepolitos</span>
+              </div>
+              <div className="portal-sub">
+                Material oficial de exhibición para cinepolitos
+              </div>
+            </div>
           </div>
-          <div className="display" style={{ fontSize: "1.4rem" }}>
-            Material para cinepolitos
-          </div>
-          <div style={{ marginLeft: "auto" }} className="fila">
-            <BotonTema />
-            <Link to="/admin" className="btn btn-chico btn-fantasma">
-              Admin
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      <section className="publico-hero">
-        <h1>Aparta pósters y standees 🎬</h1>
-        <p className="muted" style={{ maxWidth: 640 }}>
-          Este material (pósters, standees y más) es de películas que ya
-          salieron de cartelera. Elige lo que quieras y apártalo con tu ID de
-          empleado. Puedes apartar varios, pero <b>cada uno solo una vez</b> y{" "}
-          <b>no se puede cancelar</b>. La gerencia decide a quién se entrega
-          cuando hay más interesados que piezas.
-        </p>
-      </section>
-
-      <div className="publico-cuerpo">
-        <div className="tarjeta mb">
-          {empleado ? (
-            <div className="fila-entre">
-              <div>
-                <div className="muted chico">Apartando como</div>
-                <div className="negrita">
-                  {empleado.nombre} · ID {empleado.id}
+          <div className="fila" style={{ flexWrap: "nowrap" }}>
+            {empleado ? (
+              <div className="portal-id">
+                <span className="avatar">{iniciales(empleado.nombre)}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div className="portal-id-nombre">
+                    Apartando como: {empleado.nombre}{" "}
+                    <span className="mono">#{empleado.id}</span>
+                  </div>
+                  <button
+                    className="enlace"
+                    onClick={() => {
+                      setEmpleado(null);
+                      setSel(new Set());
+                      setYaApartados(new Map());
+                      setAviso(null);
+                      setIdTexto("");
+                    }}
+                  >
+                    ¿No eres tú? Cambiar ID
+                  </button>
                 </div>
               </div>
-              <button
-                className="btn btn-chico"
-                onClick={() => {
-                  setEmpleado(null);
-                  setSel(new Set());
-                  setYaApartados(new Map());
-                  setAviso(null);
-                  setIdTexto("");
-                }}
-              >
-                No soy yo
-              </button>
-            </div>
-          ) : (
-            <form className="fila" onSubmit={identificar}>
-              <label className="campo" style={{ flex: 1, minWidth: 180 }}>
-                <span>Tu ID de empleado</span>
-                <input
-                  inputMode="numeric"
-                  value={idTexto}
-                  onChange={(e) =>
-                    setIdTexto(e.target.value.replace(/\D/g, ""))
-                  }
-                  placeholder="Ej. 244689"
-                />
-              </label>
-              <button
-                className="btn btn-primario"
-                style={{ alignSelf: "flex-end" }}
-                disabled={verificando}
-              >
-                {verificando ? "Verificando…" : "Continuar"}
-              </button>
-              {errorId && (
-                <div
-                  className="alerta alerta-error"
-                  style={{ width: "100%", margin: 0 }}
-                >
-                  {errorId}
-                </div>
-              )}
-            </form>
-          )}
-        </div>
+            ) : (
+              <form className="portal-form" onSubmit={identificar}>
+                <label className="campo" style={{ flex: 1, minWidth: 150 }}>
+                  <span>Tu ID de empleado</span>
+                  <input
+                    inputMode="numeric"
+                    value={idTexto}
+                    onChange={(e) =>
+                      setIdTexto(e.target.value.replace(/\D/g, ""))
+                    }
+                    placeholder="Ej. 244689"
+                  />
+                </label>
+                <button className="btn btn-primario" disabled={verificando}>
+                  {verificando ? "Verificando…" : "Continuar"}
+                </button>
+                {errorId && (
+                  <div
+                    className="texto-rojo chico negrita"
+                    style={{ width: "100%" }}
+                  >
+                    {errorId}
+                  </div>
+                )}
+              </form>
+            )}
+            <BotonTema />
+          </div>
+        </header>
 
+        {/* ── Aviso de material por recoger ── */}
         {empleado && aviso && aviso.pendientes.length > 0 && (
-          <div className="alerta alerta-aviso">
-            <strong>
-              🎉 Tienes{" "}
-              {aviso.pendientes.length === 1
-                ? "un material"
-                : aviso.pendientes.length + " materiales"}{" "}
-              por ser entregado{aviso.pendientes.length === 1 ? "" : "s"}
-            </strong>
-            <ul>
-              {aviso.pendientes.map((x, i) => (
-                <li key={i}>
-                  <b>{x.categoria}</b>: {x.titulo} v{x.version}
-                </li>
-              ))}
-            </ul>
-            <div style={{ marginTop: 6 }}>
-              Acércate con <b>{contacto}</b> para su entrega.
+          <div className="alerta-entrega">
+            <span className="alerta-entrega-icono">
+              <Icono n="celebration" />
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <h3>
+                ¡Tienes material listo para entrega!{" "}
+                <span className="chip chip-oro chip-caps">Asignado</span>
+              </h3>
+              <div>
+                Tu apartado de{" "}
+                {aviso.pendientes.map((x, i) => (
+                  <span key={i}>
+                    {i > 0
+                      ? i === aviso.pendientes.length - 1
+                        ? " y "
+                        : ", "
+                      : ""}
+                    <b>
+                      "{x.titulo} ({x.categoria} v{x.version})"
+                    </b>
+                  </span>
+                ))}{" "}
+                {aviso.pendientes.length === 1 ? "fue" : "fueron"}{" "}
+                <b>
+                  seleccionado{aviso.pendientes.length === 1 ? "" : "s"} por
+                  gerencia
+                </b>
+                . Acércate con <b>{contacto}</b> para su entrega y firma de
+                constancia.
+              </div>
             </div>
           </div>
         )}
+
+        {/* ── Reglas ── */}
+        <div className="aviso-reglas">
+          <Icono n="info" />
+          <div>
+            <b>Material exclusivo de películas que salieron de cartelera.</b>{" "}
+            Vigencia de 1 mes exacto desde su publicación.{" "}
+            <span className="texto-oro negrita">Recuerda:</span> puedes apartar
+            varios, pero cada uno solo una vez; un apartado es personal y no se
+            puede cancelar. Gerencia asigna los materiales si hay más
+            interesados que piezas.
+          </div>
+        </div>
+
+        {/* ── Filtros ── */}
+        {posters && posters.length > 0 && (
+          <div className="portal-filtros">
+            <div className="buscador">
+              <Icono n="search" />
+              <input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por película…"
+              />
+            </div>
+            <div className="filtros-pildora">
+              <button
+                className={"pildora" + (filtroCat === "todas" ? " activa" : "")}
+                onClick={() => setFiltroCat("todas")}
+              >
+                Todos los materiales{" "}
+                <span className="cuenta">{posters.length}</span>
+              </button>
+              {categoriasPresentes.map(({ c, n }) => (
+                <button
+                  key={c.id}
+                  className={"pildora" + (filtroCat === c.id ? " activa" : "")}
+                  onClick={() => setFiltroCat(c.id)}
+                >
+                  {c.nombre} <span className="cuenta">{n}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="seccion-titulo" style={{ marginTop: 0 }}>
+          <div>
+            <h2>
+              <span className="barra-roja" />
+              Disponibles para apartado
+            </h2>
+            <div className="muted" style={{ marginTop: 4 }}>
+              {empleado
+                ? "Toca las piezas que deseas apartar."
+                : "Escribe tu ID de empleado arriba para poder apartar."}
+            </div>
+          </div>
+          <span className="caps texto-oro">{conjunto}</span>
+        </div>
 
         {posters === null ? (
           <Cargando texto="Cargando material…" />
         ) : posters.length === 0 ? (
           <div className="tarjeta">
-            <Vacio titulo="Por ahora no hay material disponible">
+            <Vacio
+              titulo="Por ahora no hay material disponible"
+              icono="local_activity"
+            >
               Vuelve a revisar pronto.
             </Vacio>
           </div>
+        ) : visibles.length === 0 ? (
+          <div className="tarjeta">
+            <Vacio titulo="Sin resultados" icono="search_off">
+              Prueba con otro nombre o tipo de material.
+            </Vacio>
+          </div>
         ) : (
-          <>
-            {posters.length > 8 && (
-              <input
-                className="mb"
-                value={busca}
-                onChange={(e) => setBusca(e.target.value)}
-                placeholder="Buscar película…"
-                style={{ maxWidth: 340 }}
-              />
-            )}
-            <div className="galeria-publica">
-              {visibles.map((p) => {
-                const ya = yaApartados.has(p.id);
-                const estado = yaApartados.get(p.id);
-                const marcado = sel.has(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    className={
-                      "tarjeta-poster" +
-                      (marcado ? " sel" : "") +
-                      (ya ? " ya" : "")
-                    }
-                    onClick={() => alternar(p)}
-                  >
-                    {marcado && <span className="marca-sel">✓</span>}
+          <div className="galeria-publica">
+            {visibles.map((p) => {
+              const ya = yaApartados.has(p.id);
+              const estado = yaApartados.get(p.id);
+              const marcado = sel.has(p.id);
+              const dias = diasPara(p.hasta);
+              const cat = nombreCat(p.categoriaId);
+              const esStandeeChico =
+                (categorias.find((c) => c.id === p.categoriaId) || { rol: "" })
+                  .rol === "standee_chico";
+              return (
+                <div
+                  key={p.id}
+                  className={"tarjeta-poster" + (marcado ? " sel" : "")}
+                >
+                  <div className="poster-envoltura" onClick={() => alternar(p)}>
+                    <span
+                      className={"tp-tipo" + (esStandeeChico ? " oro" : "")}
+                    >
+                      {cat}
+                    </span>
+                    <span
+                      className={"tp-piezas" + (p.piezas > 1 ? " rojo" : "")}
+                    >
+                      {p.piezas === 1 ? "Única" : p.piezas + " pzas"}
+                    </span>
+                    {estado === "entregado" && (
+                      <span className="tp-estado">Entregado</span>
+                    )}
                     <Poster url={p.imagenUrl} alt={p.titulo} />
-                    <div style={{ padding: "8px 2px 2px" }}>
-                      <span
-                        className="chip chip-azul"
-                        style={{ marginBottom: 4 }}
-                      >
-                        {nombreCat(p.categoriaId)}
-                      </span>
-                      <div className="negrita" style={{ lineHeight: 1.2 }}>
-                        {p.titulo}
-                      </div>
-                      <div className="muted chico">Versión {p.version}</div>
-                      <div className="chico" style={{ marginTop: 4 }}>
-                        {ya ? (
-                          estado === "seleccionado" ? (
-                            <span className="chip chip-acento">
-                              ¡Por entregarte!
-                            </span>
-                          ) : estado === "entregado" ? (
-                            <span className="chip chip-verde">
-                              Ya se te entregó
-                            </span>
-                          ) : (
-                            <span className="chip chip-verde">
-                              Ya lo apartaste
-                            </span>
-                          )
-                        ) : (
-                          <span className="muted">
-                            Entrega o desecho: {fmtFecha(p.hasta)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </>
+                    <span className="tp-vence">
+                      <Icono
+                        n={estado === "entregado" ? "done_all" : "schedule"}
+                      />
+                      {estado === "entregado"
+                        ? "Proceso cerrado"
+                        : dias <= 1
+                          ? "Vence hoy"
+                          : "Vence en: " + dias + " días"}
+                    </span>
+                  </div>
+                  <div className="tp-titulo" title={p.titulo}>
+                    {p.titulo}
+                  </div>
+                  <div className="tp-sub">
+                    {cat} v{p.version} · hasta {fmtFecha(p.hasta)}
+                  </div>
+                  {ya ? (
+                    estado === "seleccionado" ? (
+                      <button className="btn tp-accion recoger" disabled>
+                        <Icono n="redeem" /> ¡Por entregarte!
+                      </button>
+                    ) : estado === "entregado" ? (
+                      <button className="btn tp-accion entregado" disabled>
+                        <Icono n="verified" /> Ya se te entregó
+                      </button>
+                    ) : (
+                      <button className="btn tp-accion ya" disabled>
+                        <Icono n="check_circle" /> Ya lo apartaste
+                      </button>
+                    )
+                  ) : marcado ? (
+                    <button
+                      className="btn btn-primario tp-accion"
+                      onClick={() => alternar(p)}
+                    >
+                      <Icono n="check_circle" relleno /> Seleccionado
+                    </button>
+                  ) : (
+                    <button
+                      className="btn tp-accion"
+                      onClick={() => alternar(p)}
+                    >
+                      <Icono n="bookmark_add" /> Seleccionar
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
+
+        <div className="portal-admin">
+          <Link to="/admin">
+            Acceso administración <Icono n="lock" className="ico-14" />
+          </Link>
+        </div>
       </div>
 
       {elegidos.length > 0 && (
         <div className="barra-flotante">
           <div className="barra-flotante-in">
-            <span>
-              <b>{elegidos.length}</b> seleccionado(s)
-            </span>
+            <div className="barra-flotante-info">
+              <span className="icono-caja rojo">
+                <Icono n="style" />
+              </span>
+              <div style={{ minWidth: 0 }}>
+                <b>
+                  {elegidos.length} material{elegidos.length === 1 ? "" : "es"}{" "}
+                  seleccionado{elegidos.length === 1 ? "" : "s"}{" "}
+                  <span className="punto punto-rojo latido" />
+                </b>
+                <div className="barra-flotante-lista">
+                  {elegidos
+                    .map(
+                      (p) =>
+                        p.titulo +
+                        " (" +
+                        nombreCat(p.categoriaId) +
+                        " v" +
+                        p.version +
+                        ")",
+                    )
+                    .join(", ")}
+                </div>
+              </div>
+            </div>
             <button
               className="btn btn-primario"
               onClick={() => setConfirmando(true)}
             >
-              Apartar
+              Confirmar y apartar ({elegidos.length}){" "}
+              <Icono n="arrow_forward" />
             </button>
           </div>
         </div>
@@ -452,10 +592,13 @@ export default function Cinepolitos() {
         abierto={confirmando}
         titulo="Confirmar apartado"
         onCerrar={() => setConfirmando(false)}
-        ancho={460}
+        ancho={480}
         pie={
           <>
-            <button className="btn" onClick={() => setConfirmando(false)}>
+            <button
+              className="btn btn-fantasma"
+              onClick={() => setConfirmando(false)}
+            >
               Regresar
             </button>
             <button
@@ -469,17 +612,19 @@ export default function Cinepolitos() {
         }
       >
         <p>
-          <b>{empleado ? empleado.nombre : ""}</b>, vas a apartar:
+          <b className="negrita">{empleado ? empleado.nombre : ""}</b>, vas a
+          apartar:
         </p>
         <ul>
           {elegidos.map((p) => (
             <li key={p.id}>
-              <b>{nombreCat(p.categoriaId)}</b>: {p.titulo} v{p.version}{" "}
-              <span className="muted chico">· {fmtFecha(p.hasta)}</span>
+              <b className="negrita">{nombreCat(p.categoriaId)}</b>: {p.titulo}{" "}
+              v{p.version}{" "}
+              <span className="muted chico">· hasta {fmtFecha(p.hasta)}</span>
             </li>
           ))}
         </ul>
-        <div className="alerta alerta-aviso">
+        <div className="alerta alerta-aviso" style={{ marginBottom: 0 }}>
           Un apartado no se puede cancelar.
         </div>
       </Modal>
@@ -488,7 +633,7 @@ export default function Cinepolitos() {
         abierto={!!listo}
         titulo="¡Listo! 🎉"
         onCerrar={() => setListo(null)}
-        ancho={420}
+        ancho={440}
         pie={
           <button className="btn btn-primario" onClick={() => setListo(null)}>
             Entendido

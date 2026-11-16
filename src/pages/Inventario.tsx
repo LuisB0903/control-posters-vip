@@ -1,7 +1,16 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useData } from "../context/DataContext";
 import { useQuien } from "../context/AuthContext";
-import { Interruptor, Modal, Poster, useUI, Vacio } from "../components/ui";
+import {
+  Encabezado,
+  Icono,
+  Interruptor,
+  Modal,
+  Poster,
+  useUI,
+  Vacio,
+} from "../components/ui";
 import RegistrarMaterial from "../components/RegistrarMaterial";
 import {
   actualizarPelicula,
@@ -48,6 +57,16 @@ export default function Inventario() {
   const [fUbic, setFUbic] = useState("todas");
   const [verInactivas, setVerInactivas] = useState(false);
   const [editando, setEditando] = useState<Material | null>(null);
+  const [params, setParams] = useSearchParams();
+
+  // Inicio → "Registrar material" abre la ventana directamente
+  useEffect(() => {
+    if (params.get("registrar") === "1") {
+      setRegistrar({ abierto: true, pelicula: null });
+      setParams({}, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ejecutar = async (f: () => Promise<unknown>, ok?: string) => {
     try {
@@ -133,121 +152,176 @@ export default function Inventario() {
     );
   };
 
+  const totalActivas = d.materiales.reduce(
+    (a, m) => a + m.piezas.filter((x) => x.estado === "activa").length,
+    0,
+  );
+
   return (
     <div>
-      <div className="cabecera">
-        <div>
-          <h1>Inventario</h1>
-          <p>Películas, versiones y dónde está cada pieza.</p>
-        </div>
-        <div className="acciones">
+      <Encabezado
+        eyebrow={
+          <>
+            <span className="chip chip-oro chip-caps">
+              Catálogo operativo VIP
+            </span>
+            <span className="chip chip-verde">
+              <span className="punto" /> {totalActivas} piezas en piso y bodega
+            </span>
+          </>
+        }
+        titulo="Inventario de pósters y material POP"
+        descripcion={
+          "Control de versiones, standees y ubicaciones físicas en " +
+          d.config.conjunto +
+          "."
+        }
+        acciones={
           <button
             className="btn btn-primario"
             onClick={() => setRegistrar({ abierto: true, pelicula: null })}
           >
-            + Registrar material
+            <Icono n="add_circle" /> Registrar material
           </button>
-        </div>
-      </div>
-
-      <div className="tarjeta mb">
-        <div className="rejilla rejilla-4">
-          <label className="campo">
-            <span>Buscar</span>
+        }
+      >
+        <div className="barra-filtros">
+          <div className="buscador">
+            <Icono n="search" />
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Título…"
+              placeholder="Buscar por título en español o título original…"
             />
-          </label>
-          <label className="campo">
-            <span>Estado</span>
-            <select
-              value={fEstado}
-              onChange={(e) =>
-                setFEstado(e.target.value as "todos" | EstadoPelicula)
-              }
-            >
-              <option value="todos">Todos</option>
-              {ESTADOS.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.t}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="campo">
-            <span>Categoría</span>
-            <select value={fCat} onChange={(e) => setFCat(e.target.value)}>
-              <option value="todas">Todas</option>
-              {d.categorias.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="campo">
-            <span>Ubicación</span>
-            <select value={fUbic} onChange={(e) => setFUbic(e.target.value)}>
-              <option value="todas">Todas</option>
-              {opcionesUbic(d.config).map((o) => (
-                <option key={o.key} value={o.key}>
-                  {o.etiqueta}
-                </option>
-              ))}
-            </select>
-          </label>
+          </div>
+          <select
+            value={fEstado}
+            onChange={(e) =>
+              setFEstado(e.target.value as "todos" | EstadoPelicula)
+            }
+          >
+            <option value="todos">Estado: todos</option>
+            {ESTADOS.map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.t}
+              </option>
+            ))}
+          </select>
+          <select value={fCat} onChange={(e) => setFCat(e.target.value)}>
+            <option value="todas">Categoría: todas</option>
+            {d.categorias.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
+            ))}
+          </select>
+          <select value={fUbic} onChange={(e) => setFUbic(e.target.value)}>
+            <option value="todas">Ubicación: todas</option>
+            {opcionesUbic(d.config).map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.etiqueta}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="mt">
+        <div className="filtros-pie">
           <Interruptor
             activo={verInactivas}
             onCambio={setVerInactivas}
-            etiqueta="Mostrar material entregado o desechado"
+            etiqueta="Mostrar material entregado o desechado (oculto por defecto)"
           />
+          <span>
+            Mostrando <b>{grupos.length}</b> película(s) y{" "}
+            <b>{sinPelicula.length}</b> campaña(s)
+          </span>
         </div>
-      </div>
+      </Encabezado>
 
       {grupos.length === 0 && sinPelicula.length === 0 && (
         <div className="tarjeta">
-          <Vacio titulo="No hay material con esos filtros">
+          <Vacio titulo="No hay material con esos filtros" icono="search_off">
             Registra tu primer póster con el botón de arriba.
           </Vacio>
         </div>
       )}
 
-      {grupos.map(({ p, mats }) => (
-        <div className="tarjeta" key={p.id}>
-          <div className="pelicula">
-            <div className="pelicula-poster">
-              <Poster
-                url={p.posterUrl || (mats[0] && mats[0].imagenUrl)}
-                alt={p.titulo}
-              />
+      {grupos.map(({ p, mats }) => {
+        const arte = p.posterUrl || (mats[0] && mats[0].imagenUrl) || null;
+        const estreno = p.fechaEstreno
+          ? new Date(p.fechaEstreno + "T12:00:00")
+          : null;
+        const diasEstreno = estreno
+          ? Math.ceil((estreno.getTime() - Date.now()) / 86400000)
+          : null;
+        const abiertos = d.apartados.filter(
+          (a) =>
+            a.peliculaId === p.id &&
+            (a.estado === "apartado" || a.estado === "seleccionado"),
+        ).length;
+        const publicadoHasta = mats
+          .map((m) =>
+            m.cinepolitos && m.cinepolitos.activo ? m.cinepolitos.hasta : null,
+          )
+          .filter((x) => !!x)[0];
+        return (
+          <article className="peli" key={p.id}>
+            <div className="peli-arte">
+              {arte && arte.indexOf("data:") !== 0 && (
+                <div
+                  className="peli-arte-fondo"
+                  style={{ backgroundImage: 'url("' + arte + '")' }}
+                />
+              )}
+              <span
+                className={"peli-etiqueta chip chip-caps estado-" + p.estado}
+              >
+                {p.estado === "proximamente"
+                  ? "Próximo estreno"
+                  : p.estado === "cartelera"
+                    ? "En exhibición"
+                    : "Corrida finalizada"}
+              </span>
+              <div className="poster-envoltura">
+                <Poster url={arte} alt={p.titulo} />
+              </div>
+              <div className="peli-arte-pie">
+                <span>
+                  {p.tmdbId ? "TMDB #" + p.tmdbId : "Registro manual"}
+                </span>
+                {abiertos > 0 ? (
+                  <span className="texto-oro">
+                    <Icono n="bookmark" className="ico-14" /> {abiertos}{" "}
+                    solicitud(es)
+                  </span>
+                ) : p.taquillera ? (
+                  <span className="texto-oro">
+                    <Icono n="star" className="ico-14" /> Taquillera
+                  </span>
+                ) : estreno ? (
+                  <span className="texto-verde">
+                    <Icono n="event" className="ico-14" /> {fmtFecha(estreno)}
+                  </span>
+                ) : null}
+              </div>
             </div>
-            <div className="pelicula-cuerpo">
-              <div className="fila-entre">
-                <div>
-                  <div className="pelicula-titulo">{p.titulo}</div>
-                  <div className="muted chico">
-                    {p.tituloOriginal && p.tituloOriginal !== p.titulo
-                      ? p.tituloOriginal + " · "
-                      : ""}
-                    {p.fechaEstreno
-                      ? "Estreno " +
-                        fmtFecha(new Date(p.fechaEstreno + "T12:00:00"))
-                      : "Sin fecha de estreno"}
-                    {p.salioEn ? " · salió el " + fmtFecha(p.salioEn) : ""}
-                  </div>
+
+            <div className="peli-info">
+              <div className="peli-cab">
+                <div style={{ minWidth: 0 }}>
+                  <div className="peli-titulo">{p.titulo}</div>
+                  {p.tituloOriginal && p.tituloOriginal !== p.titulo && (
+                    <div className="peli-original">
+                      (Original: {p.tituloOriginal})
+                    </div>
+                  )}
                 </div>
-                <div className="fila">
+                <div className="peli-controles">
                   <select
-                    className="compacto"
+                    className={"select-estado chip estado-" + p.estado}
                     value={p.estado}
                     onChange={(e) =>
                       cambiarEstado(p, e.target.value as EstadoPelicula)
                     }
-                    style={{ width: "auto" }}
                   >
                     {ESTADOS.map((e) => (
                       <option key={e.id} value={e.id}>
@@ -257,7 +331,7 @@ export default function Inventario() {
                   </select>
                   <Interruptor
                     activo={p.taquillera}
-                    etiqueta="Taquillera"
+                    etiqueta={<span className="caps muted">Taquillera</span>}
                     onCambio={(v) =>
                       ejecutar(() =>
                         actualizarPelicula(
@@ -272,6 +346,48 @@ export default function Inventario() {
                 </div>
               </div>
 
+              <div className="peli-meta">
+                {estreno && (
+                  <span>
+                    <Icono n="calendar_month" className="ico-16" /> Estreno:{" "}
+                    <b className="negrita">{fmtFecha(estreno)}</b>
+                  </span>
+                )}
+                {p.estado === "proximamente" &&
+                  diasEstreno !== null &&
+                  diasEstreno > 0 && (
+                    <span className="texto-verde">
+                      {diasEstreno} día(s) para el lanzamiento
+                    </span>
+                  )}
+                {p.estado === "cartelera" && (
+                  <span className="texto-verde">
+                    <span className="punto latido" /> En exhibición
+                  </span>
+                )}
+                {p.salioEn && (
+                  <span>Fin de temporada: {fmtFecha(p.salioEn)}</span>
+                )}
+                {publicadoHasta && (
+                  <span className="texto-oro">
+                    <Icono n="public" className="ico-16" /> Publicado en
+                    cinepolitos hasta {fmtFecha(publicadoHasta)}
+                  </span>
+                )}
+              </div>
+
+              <div className="peli-seccion">
+                <span className="caps">Variantes y copias físicas</span>
+                {abiertos > 0 && (
+                  <span className="caps texto-verde">
+                    {abiertos} apartado(s) de empleados
+                  </span>
+                )}
+              </div>
+
+              {mats.length === 0 && (
+                <p className="muted chico">Sin material registrado.</p>
+              )}
               {mats.map((m) => (
                 <MaterialFila
                   key={m.id}
@@ -282,12 +398,12 @@ export default function Inventario() {
                 />
               ))}
 
-              <div className="fila mt">
+              <div className="peli-pie">
                 <button
-                  className="btn btn-chico"
+                  className="btn btn-chico btn-fantasma"
                   onClick={() => setRegistrar({ abierto: true, pelicula: p })}
                 >
-                  + Nueva versión / material
+                  <Icono n="add" /> Nueva versión o material
                 </button>
                 {mats.length === 0 &&
                   d.materiales.every((m) => m.peliculaId !== p.id) && (
@@ -311,28 +427,51 @@ export default function Inventario() {
                           );
                       }}
                     >
-                      Eliminar película
+                      <Icono n="delete" /> Eliminar película
                     </button>
                   )}
               </div>
             </div>
-          </div>
-        </div>
-      ))}
+          </article>
+        );
+      })}
 
       {sinPelicula.length > 0 && (
-        <div className="tarjeta">
-          <div className="pelicula-titulo">Publicidad del cine y otros</div>
-          {sinPelicula.map((m) => (
-            <MaterialFila
-              key={m.id}
-              m={m}
-              verInactivas={verInactivas}
-              onEditar={() => setEditando(m)}
-              ejecutar={ejecutar}
-            />
-          ))}
-        </div>
+        <>
+          <div className="seccion-titulo">
+            <div className="panel-titulo">
+              <span className="icono-caja oro">
+                <Icono n="campaign" />
+              </span>
+              <div>
+                <h2 style={{ margin: 0 }}>Publicidad del cine y campañas</h2>
+                <p>
+                  Material corporativo sin película: rellena carteleras cuando
+                  no hay póster.
+                </p>
+              </div>
+            </div>
+            <button
+              className="btn btn-chico"
+              onClick={() => setRegistrar({ abierto: true, pelicula: null })}
+            >
+              <Icono n="add" /> Nueva campaña
+            </button>
+          </div>
+          <div className="campanas">
+            {sinPelicula.map((m) => (
+              <div className="campana" key={m.id}>
+                <MaterialFila
+                  m={m}
+                  verInactivas={verInactivas}
+                  onEditar={() => setEditando(m)}
+                  ejecutar={ejecutar}
+                  campana
+                />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       <RegistrarMaterial
@@ -347,22 +486,52 @@ export default function Inventario() {
   );
 }
 
-/* ───────── Un material con sus piezas ───────── */
+const ICONO_ROL: Record<string, string> = {
+  cartelera: "image",
+  publicidad: "campaign",
+  standee_grande: "accessibility_new",
+  standee_chico: "view_in_ar",
+  ninguno: "flag",
+};
+
+/** "Pasillo 1-3 (#1, #2), Bodega (#3)" */
+function resumenUbicaciones(
+  m: Material,
+): { lugar: string; piezas: number[] }[] {
+  const mapa = new Map<string, number[]>();
+  m.piezas
+    .filter((p) => p.estado === "activa")
+    .sort((a, b) => a.n - b.n)
+    .forEach((p) => {
+      const k = etiquetaUbic(p.ubic);
+      mapa.set(k, (mapa.get(k) || []).concat(p.n));
+    });
+  return Array.from(mapa.entries())
+    .map(([lugar, piezas]) => ({ lugar, piezas }))
+    .sort(
+      (a, b) => Number(a.lugar === "Bodega") - Number(b.lugar === "Bodega"),
+    );
+}
+
+/* ───────── Un material (variante) con sus piezas ───────── */
 function MaterialFila({
   m,
   verInactivas,
   onEditar,
   ejecutar,
+  campana,
 }: {
   m: Material;
   verInactivas: boolean;
   onEditar: () => void;
   ejecutar: (f: () => Promise<unknown>, ok?: string) => void;
+  campana?: boolean;
 }) {
   const d = useData();
   const quien = useQuien();
   const { confirmar } = useUI();
   const [agregar, setAgregar] = useState(false);
+  const [verPiezas, setVerPiezas] = useState(false);
   const cat = d.categoriaPorId.get(m.categoriaId);
   const activas = m.piezas.filter((p) => p.estado === "activa");
   const piezas = verInactivas ? m.piezas : activas;
@@ -381,21 +550,50 @@ function MaterialFila({
         x.categoriaId === m.categoriaId,
     )
     .reduce((a, x) => Math.max(a, x.version), 0);
+  const esVieja = !!m.peliculaId && m.version < masNueva;
+  const colocadasViejas = esVieja
+    ? activas.filter((p) => p.ubic.tipo !== "bodega")
+    : [];
   const opciones = opcionesUbic(d.config);
+  const ubic = resumenUbicaciones(m);
+  const enUso = activas.filter((p) => p.ubic.tipo !== "bodega").length;
 
   return (
-    <div className="material">
-      <div className="material-cab">
-        <Poster url={m.imagenUrl} alt={m.titulo} chico />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div className="fila">
-            <span className="negrita">{nombreMaterial(m)}</span>
-            <span className="chip">{cat ? cat.nombre : m.categoriaId}</span>
-            {m.peliculaId && m.version < masNueva && (
-              <span className="chip chip-rojo">Versión anterior</span>
+    <div className={campana ? "" : "variante" + (esVieja ? " vieja" : "")}>
+      <div className="variante-fila">
+        <span className="variante-icono">
+          <Icono
+            n={
+              esVieja
+                ? "warning"
+                : ICONO_ROL[cat ? cat.rol : "ninguno"] || "image"
+            }
+          />
+        </span>
+        <div className="variante-cuerpo">
+          {campana && (
+            <div className="fila-entre" style={{ marginBottom: 2 }}>
+              <span className="caps texto-oro">
+                {cat ? cat.nombre : "Campaña"}
+              </span>
+              <span className="caps muted">{enUso} pieza(s) en uso</span>
+            </div>
+          )}
+          <div className="variante-titulo">
+            {campana
+              ? m.titulo + " v" + m.version
+              : nombreMaterial(m) +
+                " (" +
+                (cat ? cat.nombre : m.categoriaId) +
+                ")"}
+            {!campana && m.peliculaId && !esVieja && masNueva > 1 && (
+              <span className="chip chip-verde">Versión más reciente</span>
+            )}
+            {esVieja && (
+              <span className="chip chip-rojo">Versión anterior (cambiar)</span>
             )}
             {publicado && (
-              <span className="chip chip-verde">
+              <span className="chip chip-oro">
                 Cinepolitos hasta {fmtFecha(pub!.hasta)}
               </span>
             )}
@@ -408,17 +606,67 @@ function MaterialFila({
               <span className="chip chip-morado">{apartados} apartado(s)</span>
             )}
           </div>
-          <div className="muted chico">
-            {activas.length} pieza(s) activa(s) de {m.piezas.length}
+          <div className="variante-sub">
+            <span className="texto-verde negrita">
+              {activas.length} pieza(s) activa(s)
+            </span>
+            {m.piezas.length !== activas.length && (
+              <span> de {m.piezas.length}</span>
+            )}
+            {ubic.length > 0 && (
+              <>
+                {" · "}Ubicaciones:{" "}
+                {ubic.map((u, i) => (
+                  <span key={u.lugar}>
+                    {i > 0 ? ", " : ""}
+                    <b className={u.lugar === "Bodega" ? "muted" : ""}>
+                      {u.lugar}
+                    </b>{" "}
+                    (#{u.piezas.join(", #")})
+                  </span>
+                ))}
+              </>
+            )}
             {m.notas ? " · " + m.notas : ""}
           </div>
+          {colocadasViejas.length > 0 && (
+            <div className="variante-aviso">
+              <Icono n="warning" className="ico-16" />
+              <span>
+                Copia #{colocadasViejas.map((p) => p.n).join(", #")} sigue
+                montada en{" "}
+                <b>
+                  {Array.from(
+                    new Set(colocadasViejas.map((p) => etiquetaUbic(p.ubic))),
+                  ).join(", ")}
+                </b>
+                . Reemplazar por v{masNueva}.
+              </span>
+            </div>
+          )}
         </div>
-        <div className="fila">
-          <button className="btn btn-chico" onClick={() => setAgregar(true)}>
-            + Piezas
+        <div className="variante-acciones">
+          {piezas.length > 0 && (
+            <button
+              className="btn btn-chico btn-vip"
+              onClick={() => setVerPiezas(!verPiezas)}
+            >
+              <Icono n={verPiezas ? "expand_less" : "location_on"} />{" "}
+              {verPiezas ? "Ocultar" : "Ver piezas"} ({piezas.length})
+            </button>
+          )}
+          <button
+            className="btn-icono chico"
+            title="Agregar piezas"
+            onClick={() => setAgregar(true)}
+          >
+            <Icono n="add_box" />
           </button>
           <button
-            className="btn btn-chico"
+            className="btn-icono chico"
+            title={
+              publicado ? "Ocultar a cinepolitos" : "Publicar a cinepolitos"
+            }
             onClick={() =>
               ejecutar(
                 () => publicarParaCinepolitos(quien, m, !publicado),
@@ -427,16 +675,18 @@ function MaterialFila({
                   : "Publicado para cinepolitos",
               )
             }
-            title="Mostrar u ocultar en la página de cinepolitos"
           >
-            {publicado ? "Ocultar a cinepolitos" : "Publicar a cinepolitos"}
+            <Icono
+              n={publicado ? "public_off" : "public"}
+              className={publicado ? "texto-oro" : ""}
+            />
           </button>
-          <button className="btn btn-chico" onClick={onEditar}>
-            Editar
+          <button className="btn-icono chico" title="Editar" onClick={onEditar}>
+            <Icono n="edit" />
           </button>
           <button
-            className="btn btn-chico btn-fantasma"
-            title="Eliminar material"
+            className="btn-icono chico"
+            title="Eliminar material (registro por error)"
             onClick={async () => {
               if (
                 await confirmar({
@@ -457,11 +707,11 @@ function MaterialFila({
                 );
             }}
           >
-            🗑
+            <Icono n="delete" />
           </button>
         </div>
       </div>
-      {piezas.length > 0 && (
+      {verPiezas && piezas.length > 0 && (
         <div className="piezas">
           {piezas
             .slice()

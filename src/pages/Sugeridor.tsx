@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useData } from "../context/DataContext";
 import { useQuien } from "../context/AuthContext";
-import { Interruptor, useUI } from "../components/ui";
+import { Encabezado, Icono, useUI } from "../components/ui";
 import { HojaColocacion, ResultadoVista } from "../components/ResultadoVista";
 import { leerCronograma } from "../lib/ocr";
 import {
@@ -322,148 +322,214 @@ export default function Sugeridor() {
     Object.keys(listas) as (keyof ListasSemana)[]
   ).reduce((a, k) => a + listas[k].filter((i) => !i.peliculaId).length, 0);
 
-  const PASOS: { id: Paso; t: string }[] = [
-    { id: "cronograma", t: "Cronograma" },
-    { id: "listas", t: "Revisar listas" },
-    { id: "salas", t: "Salas y opciones" },
-    { id: "resultado", t: "Sugerencia" },
+  const PASOS: { id: Paso; t: string; i: string }[] = [
+    { id: "cronograma", t: "Cronograma", i: "upload_file" },
+    { id: "listas", t: "Revisar listas OCR", i: "fact_check" },
+    { id: "salas", t: "Salas y opciones", i: "tune" },
+    { id: "resultado", t: "Sugerencia y aplicar", i: "auto_awesome" },
   ];
+  const idxPaso = PASOS.findIndex((p) => p.id === paso);
+  const salasDe = new Map<string, number>();
+  salas.forEach((s) =>
+    s.peliculas.forEach((pid) => salasDe.set(pid, (salasDe.get(pid) || 0) + 1)),
+  );
 
   return (
     <div>
-      <div className="cabecera">
-        <div>
-          <h1>Sugeridor semanal</h1>
-          <p>
-            Semana {semana} de {anio}{" "}
-            {existente ? (
-              existente.estado === "aplicada" ? (
-                <span className="chip chip-verde">
-                  Aplicada por {existente.aplicadaPor}
-                </span>
-              ) : (
-                <span className="chip chip-acento">Borrador guardado</span>
-              )
-            ) : (
-              <span className="chip">Nueva</span>
-            )}
-          </p>
-        </div>
-        <div className="acciones">
-          <label className="campo" style={{ width: 90 }}>
-            <span>Semana</span>
-            <input
-              type="number"
-              min={1}
-              max={53}
-              value={semana}
-              onChange={(e) =>
-                setSemana(
-                  Math.min(53, Math.max(1, parseInt(e.target.value, 10) || 1)),
+      <Encabezado
+        eyebrow={
+          <>
+            <span className="chip chip-oro chip-caps">Motor de colocación</span>
+            <span className="chip chip-verde">
+              <span className="punto" /> Reglas del conjunto activas
+            </span>
+          </>
+        }
+        titulo="Sugeridor semanal de material publicitario"
+        descripcion="Colocación automática para taquilla, salas, lobby y pasillos, a partir del cronograma de punto de venta y tus reglas de distribución."
+        acciones={
+          <div className="selector-semana">
+            <div className="fila" style={{ flexWrap: "nowrap" }}>
+              <Icono n="calendar_month" className="texto-oro" />
+              <label className="campo" style={{ width: 80 }}>
+                <span>Semana</span>
+                <input
+                  className="compacto"
+                  type="number"
+                  min={1}
+                  max={53}
+                  value={semana}
+                  onChange={(e) =>
+                    setSemana(
+                      Math.min(
+                        53,
+                        Math.max(1, parseInt(e.target.value, 10) || 1),
+                      ),
+                    )
+                  }
+                />
+              </label>
+              <label className="campo" style={{ width: 90 }}>
+                <span>Año</span>
+                <input
+                  className="compacto"
+                  type="number"
+                  value={anio}
+                  onChange={(e) =>
+                    setAnio(parseInt(e.target.value, 10) || hoy.anio)
+                  }
+                />
+              </label>
+            </div>
+            <div className="fila-entre">
+              {existente ? (
+                existente.estado === "aplicada" ? (
+                  <span className="chip chip-verde">
+                    <Icono n="verified" /> Aplicada por {existente.aplicadaPor}
+                  </span>
+                ) : (
+                  <span className="chip chip-oro">
+                    <span className="punto punto-oro" /> Borrador guardado
+                  </span>
                 )
-              }
-            />
-          </label>
-          <label className="campo" style={{ width: 100 }}>
-            <span>Año</span>
-            <input
-              type="number"
-              value={anio}
-              onChange={(e) =>
-                setAnio(parseInt(e.target.value, 10) || hoy.anio)
-              }
-            />
-          </label>
-          <button
-            className="btn"
-            style={{ alignSelf: "flex-end" }}
-            onClick={guardar}
-            disabled={ocupado}
-          >
-            Guardar borrador
-          </button>
-        </div>
-      </div>
+              ) : (
+                <span className="chip">Semana nueva</span>
+              )}
+              <button
+                className="btn btn-chico"
+                onClick={guardar}
+                disabled={ocupado}
+              >
+                <Icono n="save" /> Guardar borrador
+              </button>
+            </div>
+          </div>
+        }
+      />
 
       <div className="pasos">
-        {PASOS.map((p, i) => (
-          <button
-            key={p.id}
-            className={"paso" + (paso === p.id ? " activo" : "")}
-            onClick={() => (p.id !== "resultado" || resultado) && setPaso(p.id)}
-          >
-            <span className="paso-n">{i + 1}</span>
-            {p.t}
-          </button>
-        ))}
+        {PASOS.map((p, i) => {
+          const estado = i < idxPaso ? "listo" : i === idxPaso ? "activo" : "";
+          return (
+            <button
+              key={p.id}
+              className={"paso " + estado}
+              disabled={p.id === "resultado" && !resultado}
+              onClick={() =>
+                (p.id !== "resultado" || resultado) && setPaso(p.id)
+              }
+            >
+              <span className="paso-n">
+                <Icono n={estado === "listo" ? "check" : p.i} />
+              </span>
+              <span className="paso-texto">
+                <span className="caps muted">
+                  Paso {i + 1}
+                  {estado === "activo" ? " · activo" : ""}
+                </span>
+                <span className="paso-nombre">{p.t}</span>
+              </span>
+              <span className="paso-estado oculto-movil">
+                {estado === "listo"
+                  ? "Listo"
+                  : estado === "activo"
+                    ? ""
+                    : "Pendiente"}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       {/* ── PASO 1 ── */}
       {paso === "cronograma" && (
-        <div className="tarjeta">
-          <h3>Sube el cronograma de punto de venta (PDF)</h3>
-          <p className="muted">
-            Se leerán automáticamente las listas de <b>Semana de estrenos</b>,
-            prioridades, garantía, cajas de luz de lobby y pasillos, standees y
-            banners. Tarda alrededor de un minuto. La primera vez descarga el
-            lector de texto en español.
-          </p>
-          {progreso ? (
-            <div className="pila">
-              <div className="fila-entre">
-                <span>{progreso.msg}</span>
-                <span className="negrita">
-                  {Math.round(progreso.pct * 100)}%
-                </span>
-              </div>
-              <div className="progreso">
-                <div style={{ width: Math.round(progreso.pct * 100) + "%" }} />
-              </div>
+        <div className="panel">
+          <div className="panel-titulo">
+            <span className="icono-caja rojo">
+              <Icono n="upload_file" />
+            </span>
+            <div>
+              <h3>Sube el cronograma de punto de venta (PDF)</h3>
+              <p>
+                Se leerán automáticamente las listas de{" "}
+                <b>Semana de estrenos</b>, prioridades, garantía, cajas de luz
+                de lobby y pasillos, standees y banners. Tarda alrededor de un
+                minuto; la primera vez descarga el lector de texto en español.
+              </p>
             </div>
-          ) : (
-            <div className="fila">
-              <label className="btn btn-primario">
-                Elegir PDF del cronograma
-                <input
-                  ref={archivoRef}
-                  type="file"
-                  accept="application/pdf"
-                  className="oculto"
-                  onChange={(e) =>
-                    leerPdf(e.target.files ? e.target.files[0] : undefined)
-                  }
-                />
-              </label>
-              <button className="btn" onClick={() => setPaso("listas")}>
-                Capturar listas a mano
-              </button>
-            </div>
-          )}
+          </div>
+          <div className="mt">
+            {progreso ? (
+              <div className="pila">
+                <div className="fila-entre">
+                  <span className="fila" style={{ gap: 8 }}>
+                    <span className="spinner" /> {progreso.msg}
+                  </span>
+                  <span className="negrita">
+                    {Math.round(progreso.pct * 100)}%
+                  </span>
+                </div>
+                <div className="progreso">
+                  <div
+                    style={{ width: Math.round(progreso.pct * 100) + "%" }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="fila">
+                <label className="btn btn-primario">
+                  <Icono n="picture_as_pdf" /> Elegir PDF del cronograma
+                  <input
+                    ref={archivoRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="oculto"
+                    onChange={(e) =>
+                      leerPdf(e.target.files ? e.target.files[0] : undefined)
+                    }
+                  />
+                </label>
+                <button
+                  className="btn btn-vip"
+                  onClick={() => setPaso("listas")}
+                >
+                  <Icono n="edit_note" /> Capturar listas a mano
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {/* ── PASO 2 ── */}
       {paso === "listas" && (
-        <div className="tarjeta">
-          <div className="tarjeta-cab">
-            <h3>Revisa lo que se leyó</h3>
+        <div className="panel">
+          <div className="panel-cab">
+            <div className="panel-titulo">
+              <span className="icono-caja oro">
+                <Icono n="fact_check" />
+              </span>
+              <div>
+                <h3>Revisa lo que se leyó</h3>
+                <p>
+                  Corrige el texto si el lector se equivocó y elige la película
+                  correcta. Las que no tengas registradas déjalas "sin
+                  coincidencia": se brincarán. En estrenos, desmarca las que el
+                  conjunto no va a exhibir.
+                </p>
+              </div>
+            </div>
             <div className="fila">
               {sinCoincidencia > 0 && (
                 <span className="chip chip-rojo">
-                  {sinCoincidencia} sin coincidencia en inventario
+                  {sinCoincidencia} sin coincidencia
                 </span>
               )}
               <button className="btn btn-chico" onClick={rebuscar}>
-                Volver a buscar coincidencias
+                <Icono n="sync" /> Volver a buscar coincidencias
               </button>
             </div>
           </div>
-          <p className="muted chico" style={{ marginTop: 0 }}>
-            Corrige el texto si el lector se equivocó y elige la película del
-            inventario correcta. Las que no tengas registradas déjalas "sin
-            coincidencia": se brincarán. En estrenos, desmarca las que el
-            conjunto no va a exhibir.
-          </p>
           <div className="pestanas">
             {DEF_LISTAS.map((l) => (
               <button
@@ -471,7 +537,14 @@ export default function Sugeridor() {
                 className={"pestana" + (pestanaLista === l.k ? " activa" : "")}
                 onClick={() => setPestanaLista(l.k)}
               >
-                {l.t} <span className="chip">{listas[l.k].length}</span>
+                {l.t}{" "}
+                <span
+                  className={
+                    "chip" + (pestanaLista === l.k ? " chip-rojo" : "")
+                  }
+                >
+                  {listas[l.k].length}
+                </span>
               </button>
             ))}
           </div>
@@ -500,15 +573,18 @@ export default function Sugeridor() {
               </pre>
             </details>
           )}
-          <div className="fila mt">
-            <button className="btn" onClick={() => setPaso("cronograma")}>
-              ← Subir otro PDF
+          <div className="fila-entre mt">
+            <button
+              className="btn btn-fantasma"
+              onClick={() => setPaso("cronograma")}
+            >
+              <Icono n="arrow_back" /> Subir otro PDF
             </button>
             <button
               className="btn btn-primario"
               onClick={() => setPaso("salas")}
             >
-              Siguiente: salas →
+              Siguiente: salas <Icono n="arrow_forward" />
             </button>
           </div>
         </div>
@@ -516,55 +592,107 @@ export default function Sugeridor() {
 
       {/* ── PASO 3 ── */}
       {paso === "salas" && (
-        <div className="tarjeta">
-          <div className="tarjeta-cab">
-            <h3>¿Qué película va en cada sala esta semana?</h3>
-            <button className="btn btn-chico" onClick={copiarSemanaAnterior}>
-              Copiar de la semana anterior
-            </button>
+        <div className="panel">
+          <div className="panel-cab">
+            <div className="panel-titulo">
+              <span className="icono-caja oro">
+                <Icono n="chair" />
+              </span>
+              <div>
+                <h3>Configuración de salas (1 a {salas.length})</h3>
+                <p>
+                  Sala con una sola película → su póster (aunque esté en varias
+                  salas del mismo pasillo, si alcanzan las piezas). Sala
+                  compartida → el póster de la otra película. Sin póster →
+                  publicidad del cine. Las películas en salas no van en
+                  pasillos.
+                </p>
+              </div>
+            </div>
+            <div className="pila" style={{ minWidth: 0 }}>
+              <label className="check chico negrita">
+                <input
+                  type="checkbox"
+                  checked={noRepetir}
+                  onChange={(e) => setNoRepetir(e.target.checked)}
+                />
+                No repetir en ninguno de los 2 pasillos
+              </label>
+              <button
+                className="btn btn-chico btn-vip"
+                onClick={copiarSemanaAnterior}
+              >
+                <Icono n="content_copy" /> Copiar de la semana anterior
+              </button>
+            </div>
           </div>
-          <p className="muted chico" style={{ marginTop: 0 }}>
-            Sala con una sola película → su póster (aunque esté en varias salas
-            del mismo pasillo, si alcanzan las piezas). Sala compartida → el
-            póster de la otra película. Si no hay póster → publicidad del cine.
-            Las películas en salas no se ponen en pasillos.
-          </p>
           <div className="salas">
             {salas.map((s, i) => (
               <div className="sala" key={s.sala}>
-                <div className="fila-entre">
+                <div className="fila-entre" style={{ flexWrap: "nowrap" }}>
                   <span className="sala-num">Sala {s.sala}</span>
-                  <span className="muted chico">
+                  <span className="chip chip-oro" style={{ fontSize: 9.5 }}>
                     {d.config.pasillo13Salas.indexOf(s.sala) >= 0
                       ? "Pasillo 1-3"
                       : "Pasillo 4-10"}
                   </span>
                 </div>
-                <div className="fila" style={{ gap: 6, margin: "8px 0" }}>
-                  {s.peliculas.length === 0 && (
-                    <span className="muted chico">Sin película</span>
-                  )}
-                  {s.peliculas.map((pid) => (
-                    <span key={pid} className="chip chip-acento">
-                      {d.peliculaPorId.get(pid)
-                        ? d.peliculaPorId.get(pid)!.titulo
-                        : "¿?"}
-                      <button
-                        className="chip-x"
-                        onClick={() => {
-                          const n = salas.slice();
-                          n[i] = {
-                            ...s,
-                            peliculas: s.peliculas.filter((x) => x !== pid),
-                          };
-                          setSalas(n);
-                        }}
+                {s.peliculas.length === 0 && (
+                  <span className="muted chico">Sin película · publicidad</span>
+                )}
+                {s.peliculas.map((pid) => {
+                  const repetida = (salasDe.get(pid) || 0) > 1;
+                  return (
+                    <div key={pid} className="sala-peli">
+                      <span
+                        title={
+                          d.peliculaPorId.get(pid)
+                            ? d.peliculaPorId.get(pid)!.titulo
+                            : ""
+                        }
                       >
-                        ✕
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                        {d.peliculaPorId.get(pid)
+                          ? d.peliculaPorId.get(pid)!.titulo
+                          : "¿?"}
+                      </span>
+                      <span
+                        className="fila"
+                        style={{ gap: 2, flexWrap: "nowrap" }}
+                      >
+                        <span
+                          className={
+                            "chip " +
+                            (s.peliculas.length > 1
+                              ? "chip-verde"
+                              : repetida
+                                ? "chip-oro"
+                                : "")
+                          }
+                        >
+                          {s.peliculas.length > 1
+                            ? "Compartida"
+                            : repetida
+                              ? "Repetida"
+                              : "Sola"}
+                        </span>
+                        <button
+                          className="chip-x"
+                          title="Quitar"
+                          onClick={() => {
+                            const n = salas.slice();
+                            n[i] = {
+                              ...s,
+                              peliculas: s.peliculas.filter((x) => x !== pid),
+                            };
+                            setSalas(n);
+                          }}
+                        >
+                          <Icono n="close" className="ico-14" />
+                        </button>
+                      </span>
+                    </div>
+                  );
+                })}
                 <select
                   className="compacto"
                   value=""
@@ -596,9 +724,11 @@ export default function Sugeridor() {
           </div>
 
           {enSalasProximamente.length > 0 && (
-            <div className="alerta alerta-info mt">
-              Estas películas están en salas pero siguen como "Próximamente":{" "}
-              {enSalasProximamente.map((p) => p.titulo).join(", ")}.{" "}
+            <div className="alerta alerta-info mt fila-entre">
+              <span>
+                Estas películas están en salas pero siguen como "Próximamente":{" "}
+                <b>{enSalasProximamente.map((p) => p.titulo).join(", ")}</b>.
+              </span>
               <button
                 className="btn btn-chico"
                 onClick={() =>
@@ -612,34 +742,26 @@ export default function Sugeridor() {
             </div>
           )}
 
-          <div
-            className="tarjeta mt"
-            style={{ background: "var(--superficie-2)" }}
-          >
-            <h4>Opciones</h4>
-            <Interruptor
-              activo={noRepetir}
-              onCambio={setNoRepetir}
-              etiqueta={
-                <span>
-                  <b>No repetir en ninguno de los 2 pasillos</b>
-                  <br />
-                  <span className="muted chico">
-                    Cada película solo aparece en un pasillo. Si falta material,
-                    se usa publicidad del cine y, si aún así no alcanza, se
-                    repite pero en el otro pasillo.
-                  </span>
-                </span>
-              }
-            />
+          <div className="alerta mt" style={{ marginBottom: 0 }}>
+            <b>
+              {noRepetir
+                ? "Sin repetir entre pasillos:"
+                : "Repetición permitida entre pasillos:"}
+            </b>{" "}
+            {noRepetir
+              ? "cada película aparece en un solo pasillo. Si falta material, se usa publicidad del cine y, si aún así no alcanza, se repite pero en el otro pasillo."
+              : "una película puede estar en ambos pasillos, pero nunca dos veces en el mismo."}
           </div>
 
-          <div className="fila mt">
-            <button className="btn" onClick={() => setPaso("listas")}>
-              ← Listas
+          <div className="fila-entre mt">
+            <button
+              className="btn btn-fantasma"
+              onClick={() => setPaso("listas")}
+            >
+              <Icono n="arrow_back" /> Listas
             </button>
             <button className="btn btn-primario" onClick={generar}>
-              ✦ Generar sugerencia
+              <Icono n="auto_awesome" /> Generar sugerencia
             </button>
           </div>
         </div>
@@ -648,46 +770,53 @@ export default function Sugeridor() {
       {/* ── PASO 4 ── */}
       {paso === "resultado" && resultado && (
         <div>
-          <div className="tarjeta mb">
-            <div className="fila-entre">
+          <ResultadoVista r={resultado} />
+          <div className="barra-acciones">
+            <div className="panel-titulo">
+              <span className="icono-caja oro">
+                <Icono n={resultado.avisos.length ? "rule" : "verified"} />
+              </span>
               <div>
-                <h3 style={{ margin: 0 }}>Sugerencia de colocación</h3>
-                <span className="muted chico">
+                <b className="negrita">
                   {resultado.movimientos.length} movimiento(s) ·{" "}
                   {resultado.avisos.length} aviso(s)
-                  {noRepetir ? " · sin repetir entre pasillos" : ""}
-                </span>
-              </div>
-              <div className="acciones">
-                <button className="btn" onClick={generar}>
-                  ↻ Regenerar
-                </button>
-                <button
-                  className="btn"
-                  onClick={() =>
-                    imprimir(
-                      <HojaColocacion
-                        r={resultado}
-                        semana={semana}
-                        anio={anio}
-                        config={d.config}
-                      />,
-                    )
-                  }
-                >
-                  🖨 Imprimir hoja
-                </button>
-                <button
-                  className="btn btn-primario"
-                  onClick={aplicar}
-                  disabled={ocupado}
-                >
-                  ✓ Aplicar al inventario
-                </button>
+                </b>
+                <p>
+                  {noRepetir
+                    ? "Sin repetir entre pasillos"
+                    : "Sin repetir dentro de cada pasillo"}{" "}
+                  · versión más nueva primero
+                </p>
               </div>
             </div>
+            <div className="acciones">
+              <button className="btn" onClick={generar}>
+                <Icono n="refresh" /> Regenerar
+              </button>
+              <button
+                className="btn btn-vip"
+                onClick={() =>
+                  imprimir(
+                    <HojaColocacion
+                      r={resultado}
+                      semana={semana}
+                      anio={anio}
+                      config={d.config}
+                    />,
+                  )
+                }
+              >
+                <Icono n="print" /> Imprimir hoja
+              </button>
+              <button
+                className="btn btn-primario"
+                onClick={aplicar}
+                disabled={ocupado}
+              >
+                <Icono n="task_alt" /> Aplicar al inventario
+              </button>
+            </div>
           </div>
-          <ResultadoVista r={resultado} />
         </div>
       )}
     </div>
@@ -767,36 +896,36 @@ function EditorLista({
           )}
           <div className="fila" style={{ gap: 2, flexWrap: "nowrap" }}>
             <button
-              className="btn btn-chico btn-fantasma"
+              className="btn-icono chico"
               onClick={() => mover(i, -1)}
               title="Subir"
             >
-              ↑
+              <Icono n="arrow_upward" />
             </button>
             <button
-              className="btn btn-chico btn-fantasma"
+              className="btn-icono chico"
               onClick={() => mover(i, 1)}
               title="Bajar"
             >
-              ↓
+              <Icono n="arrow_downward" />
             </button>
             <button
-              className="btn btn-chico btn-fantasma"
+              className="btn-icono chico"
               onClick={() => onCambio(items.filter((_, j) => j !== i))}
               title="Quitar"
             >
-              ✕
+              <Icono n="close" />
             </button>
           </div>
         </div>
       ))}
       <button
-        className="btn btn-chico mt"
+        className="btn btn-chico btn-vip mt"
         onClick={() =>
           onCambio(items.concat({ texto: "", peliculaId: null, activo: true }))
         }
       >
-        + Agregar fila
+        <Icono n="add" /> Agregar fila
       </button>
     </div>
   );

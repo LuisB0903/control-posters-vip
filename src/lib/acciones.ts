@@ -259,6 +259,29 @@ export async function moverPieza(
   await b.commit();
 }
 
+/** Regresa varias piezas de un material a bodega en una sola operación */
+export async function moverPiezasABodega(
+  q: Quien,
+  m: Material,
+  numeros: number[],
+) {
+  const piezas = m.piezas.map((p) =>
+    numeros.indexOf(p.n) >= 0 ? { ...p, ubic: BODEGA } : p,
+  );
+  const b = writeBatch(db);
+  b.update(doc(db, "materiales", m.id), { piezas });
+  log(
+    b,
+    q,
+    "Movimiento de pieza",
+    nombreMaterial(m) +
+      " " +
+      numeros.map((n) => "#" + n).join(", ") +
+      " → Bodega (cambio de versión)",
+  );
+  await b.commit();
+}
+
 export async function cambiarEstadoPieza(
   q: Quien,
   m: Material,
