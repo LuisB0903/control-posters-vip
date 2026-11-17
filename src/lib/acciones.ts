@@ -509,10 +509,26 @@ function aplicarEstadosApartados(
   nombreCat: NombreCategoria,
 ) {
   const afectados = new Set<string>();
+  const materialesAfectados = new Set<string>();
   cambios.forEach((estado, id) => {
     b.update(doc(db, "apartados", id), { estado });
     const a = todos.find((x) => x.id === id);
-    if (a) afectados.add(a.empleadoId);
+    if (a) {
+      afectados.add(a.empleadoId);
+      materialesAfectados.add(a.materialId);
+    }
+  });
+  // Fila pública: los turnos "No entregado" dejan de contar y los demás avanzan
+  materialesAfectados.forEach((materialId) => {
+    const lista = todos
+      .filter((a) => a.materialId === materialId)
+      .map((a) => ({ ...a, estado: cambios.get(a.id) || a.estado }));
+    if (!lista.length || lista.some((a) => typeof a.turno !== "number")) return;
+    const fuera = lista
+      .filter((a) => a.estado === "no_entregado")
+      .map((a) => a.turno as number)
+      .sort((x, y) => x - y);
+    b.set(doc(db, "filas", materialId), { fuera }, { merge: true });
   });
   afectados.forEach((empleadoId) => {
     const pendientes = todos
@@ -529,6 +545,60 @@ function aplicarEstadosApartados(
       actualizado: serverTimestamp(),
     });
   });
+}
+
+/**
+ * Asigna turno (orden de llegada) a los apartados que no lo tienen y crea la fila pública
+ * de cada material. Se ejecuta sola al entrar al panel si hace falta (apartados antiguos).
+ */
+export async function sincronizarFilas(
+  q: Quien,
+  todos: Apartado[],
+): Promise<number> {
+  const porMaterial = new Map<string, Apartado[]>();
+  todos.forEach((a) =>
+    porMaterial.set(
+      a.materialId,
+      (porMaterial.get(a.materialId) || []).concat(a),
+    ),
+  );
+  const ops: ((b: WriteBatch) => void)[] = [];
+  let materiales = 0;
+  porMaterial.forEach((lista, materialId) => {
+    if (lista.every((a) => typeof a.turno === "number")) return;
+    materiales++;
+    // orden por fecha de creación (los que ya tienen turno conservan su lugar relativo)
+    const orden = lista.slice().sort((a, b) => {
+      const fa = a.creadoEn ? a.creadoEn.seconds : Infinity;
+      const fb = b.creadoEn ? b.creadoEn.seconds : Infinity;
+      return (
+        fa - fb || (a.turno || 0) - (b.turno || 0) || (a.id < b.id ? -1 : 1)
+      );
+    });
+    const fuera: number[] = [];
+    orden.forEach((a, i) => {
+      const turno = i + 1;
+      if (a.estado === "no_entregado") fuera.push(turno);
+      if (a.turno !== turno)
+        ops.push((b) => b.update(doc(db, "apartados", a.id), { turno }));
+    });
+    const ultimo = orden[orden.length - 1].id;
+    ops.push((b) =>
+      b.set(doc(db, "filas", materialId), {
+        total: orden.length,
+        ultimo,
+        fuera,
+      }),
+    );
+  });
+  if (!materiales) return 0;
+  await enBloques(
+    ops,
+    q,
+    "Turnos de apartados",
+    "Se ordenaron por llegada los apartados de " + materiales + " material(es)",
+  );
+  return materiales;
 }
 
 const ESTADO_APARTADO_TXT: Record<EstadoApartado, string> = {

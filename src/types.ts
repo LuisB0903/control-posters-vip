@@ -104,6 +104,14 @@ export interface Apartado {
   empleadoNombre: string;
   creadoEn: Timestamp | null;
   estado: EstadoApartado;
+  turno?: number; // orden de llegada para ese material (1 = el primero que lo apartó)
+}
+
+/** Fila pública de un material: cuántos lo han apartado y qué turnos ya no cuentan */
+export interface FilaMaterial {
+  total: number;
+  ultimo: string;
+  fuera: number[]; // turnos que quedaron como "No entregado"
 }
 
 /** Aviso público por empleado: lo que ya se le seleccionó y debe recoger */

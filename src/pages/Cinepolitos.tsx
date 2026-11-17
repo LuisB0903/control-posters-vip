@@ -6,8 +6,8 @@ import {
   getDoc,
   onSnapshot,
   query,
+  runTransaction,
   serverTimestamp,
-  setDoc,
   where,
 } from "firebase/firestore";
 import { db } from "../firebase";
@@ -29,7 +29,9 @@ import {
   type AvisoEmpleado,
   type Categoria,
   type EstadoApartado,
+  type FilaMaterial,
 } from "../types";
+import { lugarEnFila, posicionPublica, stockDe, type Lugar } from "../lib/fila";
 
 interface PosterPublico {
   id: string;
@@ -40,6 +42,12 @@ interface PosterPublico {
   imagenUrl: string | null;
   hasta: Date;
   piezas: number;
+  stock: number; // piezas activas + entregadas (cuentan para la fila)
+}
+
+interface MiApartado {
+  estado: EstadoApartado;
+  turno: number | null;
 }
 
 /** Página pública: los cinepolitos apartan pósters de películas que ya salieron de cartelera */
@@ -53,9 +61,13 @@ export default function Cinepolitos() {
   } | null>(null);
   const [verificando, setVerificando] = useState(false);
   const [errorId, setErrorId] = useState("");
-  const [yaApartados, setYaApartados] = useState<Map<string, EstadoApartado>>(
+  const [yaApartados, setYaApartados] = useState<Map<string, MiApartado>>(
     new Map(),
   );
+  const [filas, setFilas] = useState<Map<string, FilaMaterial>>(new Map());
+  const [resultados, setResultados] = useState<
+    { texto: string; lugar: Lugar }[] | null
+  >(null);
   const [categorias, setCategorias] = useState<Categoria[]>(CATEGORIAS_DEFAULT);
   const [contacto, setContacto] = useState(CONFIG_DEFAULT.entregaContacto);
   const [conjunto, setConjunto] = useState(CONFIG_DEFAULT.conjunto);
@@ -118,6 +130,7 @@ export default function Cinepolitos() {
               piezas: m.piezas.filter(
                 (p: { estado: string }) => p.estado === "activa",
               ).length,
+              stock: stockDe(m.piezas),
             });
         });
         lista.sort(
@@ -135,6 +148,26 @@ export default function Cinepolitos() {
     return u;
   }, [toast]);
 
+  // fila pública de cada material (para saber si aún hay pieza o se queda en fila)
+  const cargarFilas = (lista: PosterPublico[]) =>
+    Promise.all(
+      lista.map((p) =>
+        getDoc(doc(db, "filas", p.id))
+          .then((f) =>
+            f.exists()
+              ? ([p.id, f.data() as FilaMaterial] as [string, FilaMaterial])
+              : null,
+          )
+          .catch(() => null),
+      ),
+    ).then((r) =>
+      setFilas(new Map(r.filter((x): x is [string, FilaMaterial] => !!x))),
+    );
+  useEffect(() => {
+    if (posters) cargarFilas(posters);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posters]);
+
   // revisar cuáles ya apartó este empleado
   useEffect(() => {
     if (!empleado || !posters) return;
@@ -144,10 +177,16 @@ export default function Cinepolitos() {
         getDoc(doc(db, "apartados", p.id + "_" + empleado.id))
           .then((s) =>
             s.exists()
-              ? ([p.id, (s.data().estado || "apartado") as EstadoApartado] as [
-                  string,
-                  EstadoApartado,
-                ])
+              ? ([
+                  p.id,
+                  {
+                    estado: (s.data().estado || "apartado") as EstadoApartado,
+                    turno:
+                      typeof s.data().turno === "number"
+                        ? (s.data().turno as number)
+                        : null,
+                  },
+                ] as [string, MiApartado])
               : null,
           )
           .catch(() => null),
@@ -155,7 +194,7 @@ export default function Cinepolitos() {
     ).then((r) => {
       if (vivo)
         setYaApartados(
-          new Map(r.filter((x): x is [string, EstadoApartado] => !!x)),
+          new Map(r.filter((x): x is [string, MiApartado] => !!x)),
         );
     });
     return () => {
@@ -207,37 +246,68 @@ export default function Cinepolitos() {
 
   const elegidos = (posters || []).filter((p) => sel.has(p.id));
 
+  /** Lugar que tendría (o tiene) en la fila de un material */
+  const lugarDe = (p: PosterPublico): Lugar | null => {
+    const mio = yaApartados.get(p.id);
+    const f = filas.get(p.id);
+    if (mio && mio.turno !== null)
+      return lugarEnFila(
+        posicionPublica(mio.turno, f ? f.fuera || [] : []),
+        p.stock,
+      );
+    return null;
+  };
+  const lugarProyectado = (p: PosterPublico): Lugar => {
+    const f = filas.get(p.id);
+    const cuentan = f ? f.total - (f.fuera || []).length : 0;
+    return lugarEnFila(cuentan + 1, p.stock);
+  };
+
   const apartar = async () => {
     if (!empleado) return;
     setEnviando(true);
-    const ok: string[] = [];
-    const okIds: string[] = [];
+    const ok: { texto: string; lugar: Lugar }[] = [];
+    const nuevos = new Map(yaApartados);
     const fallidos: string[] = [];
-    await Promise.all(
-      elegidos.map((p) =>
-        setDoc(doc(db, "apartados", p.id + "_" + empleado.id), {
-          materialId: p.id,
-          peliculaId: p.peliculaId,
-          titulo: p.titulo,
-          version: p.version,
-          empleadoId: empleado.id,
-          empleadoNombre: empleado.nombre,
-          creadoEn: serverTimestamp(),
-          estado: "apartado",
-        })
-          .then(() => {
-            ok.push(etiqueta(p));
-            okIds.push(p.id);
-          })
-          .catch(() => fallidos.push(etiqueta(p))),
-      ),
-    );
+    // uno por uno: cada apartado toma el siguiente turno de la fila de ese material
+    for (const p of elegidos) {
+      const apId = p.id + "_" + empleado.id;
+      try {
+        const r = await runTransaction(db, async (tx) => {
+          const filaRef = doc(db, "filas", p.id);
+          const f = await tx.get(filaRef);
+          const previa = f.exists() ? (f.data() as FilaMaterial) : null;
+          const turno = (previa ? previa.total : 0) + 1;
+          const fuera =
+            previa && Array.isArray(previa.fuera) ? previa.fuera : [];
+          tx.set(doc(db, "apartados", apId), {
+            materialId: p.id,
+            peliculaId: p.peliculaId,
+            titulo: p.titulo,
+            version: p.version,
+            empleadoId: empleado.id,
+            empleadoNombre: empleado.nombre,
+            creadoEn: serverTimestamp(),
+            estado: "apartado",
+            turno,
+          });
+          tx.set(filaRef, { total: turno, ultimo: apId, fuera });
+          return { turno, fuera };
+        });
+        ok.push({
+          texto: etiqueta(p),
+          lugar: lugarEnFila(posicionPublica(r.turno, r.fuera), p.stock),
+        });
+        nuevos.set(p.id, { estado: "apartado", turno: r.turno });
+      } catch (e) {
+        fallidos.push(etiqueta(p));
+      }
+    }
     setEnviando(false);
     setConfirmando(false);
     setSel(new Set());
-    const nuevo = new Map(yaApartados);
-    okIds.forEach((id) => nuevo.set(id, "apartado"));
-    setYaApartados(nuevo);
+    setYaApartados(nuevos);
+    if (posters) cargarFilas(posters);
     if (fallidos.length)
       toast(
         "No se pudo apartar: " +
@@ -245,7 +315,10 @@ export default function Cinepolitos() {
           " (ya lo habías apartado o ya cerró)",
         "error",
       );
-    if (ok.length) setListo(ok);
+    if (ok.length) {
+      setResultados(ok);
+      setListo(ok.map((x) => x.texto));
+    }
   };
 
   const visibles = useMemo(
@@ -390,8 +463,9 @@ export default function Cinepolitos() {
             Vigencia de 1 mes exacto desde su publicación.{" "}
             <span className="texto-oro negrita">Recuerda:</span> puedes apartar
             varios, pero cada uno solo una vez; un apartado es personal y no se
-            puede cancelar. Gerencia asigna los materiales si hay más
-            interesados que piezas.
+            puede cancelar. Los primeros en apartar, hasta completar las piezas,
+            quedan <b>apartados</b>; los demás quedan <b>en fila</b> y se les
+            entrega si alguien de antes no lo recibe y gerencia los selecciona.
           </div>
         </div>
 
@@ -463,7 +537,12 @@ export default function Cinepolitos() {
           <div className="galeria-publica">
             {visibles.map((p) => {
               const ya = yaApartados.has(p.id);
-              const estado = yaApartados.get(p.id);
+              const mio = yaApartados.get(p.id);
+              const estado = mio ? mio.estado : undefined;
+              const lugar = lugarDe(p);
+              const proy = lugarProyectado(p);
+              const abiertoMio =
+                estado === "apartado" || estado === "seleccionado";
               const marcado = sel.has(p.id);
               const dias = diasPara(p.hasta);
               const cat = nombreCat(p.categoriaId);
@@ -481,11 +560,34 @@ export default function Cinepolitos() {
                     >
                       {cat}
                     </span>
-                    <span
-                      className={"tp-piezas" + (p.piezas > 1 ? " rojo" : "")}
-                    >
-                      {p.piezas === 1 ? "Única" : p.piezas + " pzas"}
-                    </span>
+                    {mio && abiertoMio && lugar ? (
+                      lugar.enStock ? (
+                        <span
+                          className="tp-piezas rojo"
+                          title="Alcanzaste pieza"
+                        >
+                          Apartado #{lugar.pos}
+                        </span>
+                      ) : (
+                        <span
+                          className="tp-piezas"
+                          title="Ya no hay piezas: estás en espera"
+                        >
+                          En fila #{lugar.fila}
+                        </span>
+                      )
+                    ) : !mio ? (
+                      proy.enStock ? (
+                        <span className="tp-piezas verde">Disponible</span>
+                      ) : (
+                        <span
+                          className="tp-piezas"
+                          title="Ya lo apartaron otros: quedarías en fila"
+                        >
+                          En espera
+                        </span>
+                      )
+                    ) : null}
                     {estado === "entregado" && (
                       <span className="tp-estado">Entregado</span>
                     )}
@@ -516,9 +618,16 @@ export default function Cinepolitos() {
                       <button className="btn tp-accion entregado" disabled>
                         <Icono n="verified" /> Ya se te entregó
                       </button>
+                    ) : lugar && !lugar.enStock && estado === "apartado" ? (
+                      <button className="btn tp-accion ya" disabled>
+                        <Icono n="hourglass_top" /> En fila #{lugar.fila}
+                      </button>
                     ) : (
                       <button className="btn tp-accion ya" disabled>
-                        <Icono n="check_circle" /> Ya lo apartaste
+                        <Icono n="check_circle" />{" "}
+                        {lugar && estado === "apartado"
+                          ? "Apartado #" + lugar.pos
+                          : "Ya lo apartaste"}
                       </button>
                     )
                   ) : marcado ? (
@@ -616,15 +725,32 @@ export default function Cinepolitos() {
           apartar:
         </p>
         <ul>
-          {elegidos.map((p) => (
-            <li key={p.id}>
-              <b className="negrita">{nombreCat(p.categoriaId)}</b>: {p.titulo}{" "}
-              v{p.version}{" "}
-              <span className="muted chico">· hasta {fmtFecha(p.hasta)}</span>
-            </li>
-          ))}
+          {elegidos.map((p) => {
+            const l = lugarProyectado(p);
+            return (
+              <li key={p.id} style={{ marginBottom: 6 }}>
+                <b className="negrita">{nombreCat(p.categoriaId)}</b>:{" "}
+                {p.titulo} v{p.version}{" "}
+                {l.enStock ? (
+                  <span className="chip chip-verde">Alcanzas pieza</span>
+                ) : (
+                  <span className="chip chip-oro">
+                    Quedarías en fila #{l.fila}
+                  </span>
+                )}
+              </li>
+            );
+          })}
         </ul>
-        <div className="alerta alerta-aviso" style={{ marginBottom: 0 }}>
+        {elegidos.some((p) => !lugarProyectado(p).enStock) && (
+          <div className="alerta alerta-aviso">
+            <strong>Vas a quedar en fila en algunos materiales.</strong> Ya no
+            hay piezas suficientes porque otros compañeros los apartaron antes.
+            Si alguno de ellos no lo recibe y gerencia te selecciona, se te
+            entregará; verás el aviso al poner tu ID en esta página.
+          </div>
+        )}
+        <div className="alerta alerta-error" style={{ marginBottom: 0 }}>
           Un apartado no se puede cancelar.
         </div>
       </Modal>
@@ -641,7 +767,25 @@ export default function Cinepolitos() {
         }
       >
         <p>Apartaste:</p>
-        <ul>{listo && listo.map((t) => <li key={t}>{t}</li>)}</ul>
+        <ul>
+          {(resultados || []).map((r) => (
+            <li key={r.texto} style={{ marginBottom: 6 }}>
+              {r.texto}{" "}
+              {r.lugar.enStock ? (
+                <span className="chip chip-verde">Apartado #{r.lugar.pos}</span>
+              ) : (
+                <span className="chip chip-oro">En fila #{r.lugar.fila}</span>
+              )}
+            </li>
+          ))}
+        </ul>
+        {(resultados || []).some((r) => !r.lugar.enStock) && (
+          <div className="alerta alerta-aviso">
+            En los que quedaste <b>en fila</b> ya no alcanzó pieza. Si alguien
+            que lo apartó antes no lo recibe y gerencia te selecciona, se te
+            entregará.
+          </div>
+        )}
         <p className="muted chico">
           Si se te selecciona, al poner tu ID en esta página verás el aviso para
           recogerlo con {contacto}. Recuerda la fecha de entrega o desecho de

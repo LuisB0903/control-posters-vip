@@ -24,7 +24,8 @@ service cloud.firestore {
       let d = request.resource.data;
       let empPath = /databases/$(database)/documents/empleados/$(d.empleadoId);
       let mat = get(/databases/$(database)/documents/materiales/$(d.materialId)).data;
-      return d.keys().hasOnly(['materialId', 'peliculaId', 'titulo', 'version', 'empleadoId', 'empleadoNombre', 'creadoEn', 'estado'])
+      let fila = getAfter(/databases/$(database)/documents/filas/$(d.materialId)).data;
+      return d.keys().hasOnly(['materialId', 'peliculaId', 'titulo', 'version', 'empleadoId', 'empleadoNombre', 'creadoEn', 'estado', 'turno'])
         && d.keys().hasAll(['materialId', 'peliculaId', 'titulo', 'version', 'empleadoId', 'empleadoNombre', 'creadoEn', 'estado'])
         && apartadoId == d.materialId + '_' + d.empleadoId
         && d.estado == 'apartado'
@@ -36,7 +37,19 @@ service cloud.firestore {
         && mat.cinepolitos.hasta > request.time
         && d.titulo == mat.titulo
         && d.version == mat.version
-        && d.peliculaId == mat.peliculaId;
+        && d.peliculaId == mat.peliculaId
+        && d.turno == fila.total
+        && fila.ultimo == apartadoId;
+    }
+
+    // Turno nuevo en la fila de un material: solo sube de 1 en 1 y debe corresponder al apartado que se crea
+    function turnoValido(materialId) {
+      let r = request.resource.data;
+      let ap = getAfter(/databases/$(database)/documents/apartados/$(r.ultimo)).data;
+      return r.keys().hasOnly(['total', 'ultimo', 'fuera'])
+        && !exists(/databases/$(database)/documents/apartados/$(r.ultimo))
+        && ap.materialId == materialId
+        && ap.turno == r.total;
     }
 
     // ── Configuración ──
@@ -96,6 +109,16 @@ service cloud.firestore {
     match /avisos/{empleadoId} {
       allow get: if true;
       allow list, write: if isAdmin();
+    }
+
+    // ── Filas de apartado por material (orden de llegada) ──
+    match /filas/{materialId} {
+      allow get: if true;
+      allow list, write: if isAdmin();
+      allow create: if request.resource.data.total == 1 && request.resource.data.fuera.size() == 0 && turnoValido(materialId);
+      allow update: if request.resource.data.total == resource.data.total + 1
+        && request.resource.data.fuera == resource.data.fuera
+        && turnoValido(materialId);
     }
 
     // ── Solo administración ──

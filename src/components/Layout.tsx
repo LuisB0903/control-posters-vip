@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import { BotonTema, Cargando, Icono } from "./ui";
 import { alertasVersiones, materialesVencidos } from "../lib/alertas";
 import { idSemana, semanaISO } from "../lib/fechas";
+import { sincronizarFilas } from "../lib/acciones";
 
 const MENU = [
   {
@@ -50,10 +51,21 @@ const MENU = [
 ];
 
 export default function Layout() {
-  const { admin, salir } = useAuth();
+  const { admin, salir, quien } = useAuth();
   const data = useData();
   const [menuAbierto, setMenuAbierto] = useState(false);
   const loc = useLocation();
+
+  // Apartados antiguos sin turno → se ordenan por llegada una sola vez
+  const sincronizado = useRef(false);
+  useEffect(() => {
+    if (!data.listo || !quien || sincronizado.current) return;
+    if (!data.apartados.some((a) => typeof a.turno !== "number")) return;
+    sincronizado.current = true;
+    sincronizarFilas(quien, data.apartados).catch(() => {
+      sincronizado.current = false;
+    });
+  }, [data.listo, data.apartados, quien]);
 
   // cerrar el menú móvil al cambiar de página
   useEffect(() => {

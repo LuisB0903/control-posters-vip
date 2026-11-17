@@ -280,6 +280,8 @@ Estados de un apartado:
 
 Las personas del aviso se cambian en **Configuración → Quién entrega el material**.
 
+**Orden de llegada (turnos):** cada apartado recibe un turno según quién lo apartó primero. Los primeros, hasta completar las piezas que hay, quedan **"Apartado #N"** (alcanzan pieza, resaltados en verde en el panel). Los demás quedan **"En fila #N"**: al apartar se les avisa que ya no hay piezas suficientes, y se les entrega solo si alguien de antes no lo recibe y gerencia los selecciona. Si un apartado pasa a "No entregado", los que siguen avanzan en la fila. La lista de apartados del panel se muestra de los más antiguos a los más recientes.
+
 **Al entregar, la pieza sale del inventario automáticamente** (queda en el historial y en la constancia). Si ya no quedan piezas, el material desaparece de la página de cinepolitos. Lo único manual es **desechar**.
 
 **Apartados y entregas**:

@@ -13,6 +13,13 @@ import {
 } from "../lib/acciones";
 import { aDate, fmtFecha, fmtFechaHora, vencido } from "../lib/fechas";
 import { contiene } from "../lib/texto";
+import {
+  posicionesDeMaterial,
+  posicionesTodas,
+  textoLugar,
+  type Lugar,
+} from "../lib/fila";
+import { Icono } from "../components/ui";
 import { descargarCsv, errorTexto } from "../lib/utilidades";
 import type { Apartado, EstadoApartado, Material } from "../types";
 
@@ -71,6 +78,38 @@ export default function Apartados() {
       {tab === "historial" && <Historial />}
     </div>
   );
+}
+
+/** Chip con el lugar en la fila: "Apartado #2" (en stock) o "En fila #3" */
+function ChipLugar({ a, l }: { a: Apartado; l: Lugar | undefined }) {
+  if (a.estado === "no_entregado" || !l)
+    return <span className="muted">—</span>;
+  if (a.estado === "entregado")
+    return (
+      <span className="chip chip-verde">
+        <Icono n="task_alt" /> #{l.pos}
+      </span>
+    );
+  return l.enStock ? (
+    <span
+      className="chip chip-verde chip-caps"
+      title={"Turno " + l.pos + ": alcanza pieza"}
+    >
+      <Icono n="inventory_2" /> {textoLugar(l)}
+    </span>
+  ) : (
+    <span
+      className="chip chip-caps"
+      title={"Turno " + l.pos + ": ya no alcanza pieza"}
+    >
+      <Icono n="hourglass_top" /> {textoLugar(l)}
+    </span>
+  );
+}
+
+function claseFila(a: Apartado, l: Lugar | undefined): string {
+  if (!l || (a.estado !== "apartado" && a.estado !== "seleccionado")) return "";
+  return l.enStock ? "fila-stock" : "fila-espera";
 }
 
 /* ───────── Lista con filtros ───────── */
@@ -147,6 +186,10 @@ function ListaApartados() {
   );
   const [agrupar, setAgrupar] = useState<"ninguno" | "empleado" | "poster">(
     "ninguno",
+  );
+  const lugares = useMemo(
+    () => posicionesTodas(d.apartados, d.materiales),
+    [d.apartados, d.materiales],
   );
 
   const hastaDe = (a: Apartado) => {
@@ -314,6 +357,15 @@ function ListaApartados() {
             </select>
           </div>
           <div className="fila">
+            <span className="leyenda oculto-movil">
+              <span>
+                <i style={{ background: "var(--verde)" }} /> En stock (primeros
+                en apartar)
+              </span>
+              <span>
+                <i style={{ background: "var(--muted-2)" }} /> En fila
+              </span>
+            </span>
             <span className="muted chico">{filtrados.length} resultado(s)</span>
             <button
               className="btn btn-chico"
@@ -342,6 +394,7 @@ function ListaApartados() {
               <table className="tabla">
                 <thead>
                   <tr>
+                    <th>Lugar</th>
                     <th>Fecha</th>
                     <th>Cinepolito</th>
                     <th>Material</th>
@@ -351,7 +404,10 @@ function ListaApartados() {
                 </thead>
                 <tbody>
                   {g.items.map((a) => (
-                    <tr key={a.id}>
+                    <tr key={a.id} className={claseFila(a, lugares.get(a.id))}>
+                      <td>
+                        <ChipLugar a={a} l={lugares.get(a.id)} />
+                      </td>
                       <td className="chico">{fmtFechaHora(a.creadoEn)}</td>
                       <td>
                         <b>{a.empleadoId}</b> · {a.empleadoNombre}
@@ -452,6 +508,10 @@ function Entregar({ inicial }: { inicial: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empleadoId]);
 
+  const lugaresE = useMemo(
+    () => posicionesTodas(d.apartados, d.materiales),
+    [d.apartados, d.materiales],
+  );
   const disponibles = (m: Material | undefined) =>
     m ? m.piezas.filter((p) => p.estado === "activa").length : 0;
   const interesados = (materialId: string) =>
@@ -625,6 +685,7 @@ function Entregar({ inicial }: { inicial: string }) {
                         <span className={"chip " + ESTADO_CHIP[a.estado]}>
                           {ESTADO_TXT[a.estado]}
                         </span>
+                        <ChipLugar a={a} l={lugaresE.get(a.id)} />
                       </div>
                       <div className="muted chico">
                         {libres} pieza(s) · {otros} interesado(s) · {yaSel}{" "}
@@ -742,11 +803,13 @@ function PorPoster({
       ) : (
         <div className="pila">
           <p className="muted chico" style={{ margin: 0 }}>
-            Clic en un nombre para seleccionarlo o entregarle. Morado = apartado
-            · Dorado = seleccionado · Verde = entregado.
+            En orden de llegada (#1 = el primero). Con contorno verde = alcanza
+            pieza (en stock). Morado = apartado · Dorado = seleccionado · Verde
+            = entregado. Clic en un nombre para seleccionarlo o entregarle.
           </p>
           {lista.map((m) => {
             const aps = d.apartados.filter((a) => a.materialId === m.id);
+            const lugaresM = posicionesDeMaterial(d.apartados, m);
             const pend = aps.filter((a) => a.estado === "apartado");
             const selec = aps.filter((a) => a.estado === "seleccionado");
             const libres = m.piezas.filter((p) => p.estado === "activa").length;
@@ -807,28 +870,36 @@ function PorPoster({
                     </div>
                     {aps.length > 0 && (
                       <div className="fila mt" style={{ gap: 6 }}>
-                        {aps.map((a) => (
-                          <button
-                            key={a.id}
-                            className={"chip " + ESTADO_CHIP[a.estado]}
-                            style={{
-                              border: 0,
-                              cursor: abierto(a) ? "pointer" : "default",
-                            }}
-                            title={
-                              abierto(a)
-                                ? ESTADO_TXT[a.estado] +
-                                  " · clic para seleccionar o entregar"
-                                : ESTADO_TXT[a.estado]
-                            }
-                            onClick={() =>
-                              abierto(a) && irAEntregar(a.empleadoId)
-                            }
-                          >
-                            {a.empleadoId} ·{" "}
-                            {a.empleadoNombre.split(" ").slice(-2).join(" ")}
-                          </button>
-                        ))}
+                        {aps.map((a) => {
+                          const l = lugaresM.get(a.id);
+                          const stock = !!l && l.enStock && abierto(a);
+                          return (
+                            <button
+                              key={a.id}
+                              className={"chip " + ESTADO_CHIP[a.estado]}
+                              style={{
+                                cursor: abierto(a) ? "pointer" : "default",
+                                boxShadow: stock
+                                  ? "0 0 0 2px var(--verde)"
+                                  : undefined,
+                              }}
+                              title={
+                                (l ? textoLugar(l) + " · " : "") +
+                                ESTADO_TXT[a.estado] +
+                                (abierto(a)
+                                  ? " · clic para seleccionar o entregar"
+                                  : "")
+                              }
+                              onClick={() =>
+                                abierto(a) && irAEntregar(a.empleadoId)
+                              }
+                            >
+                              {l ? "#" + l.pos + " " : ""}
+                              {a.empleadoId} ·{" "}
+                              {a.empleadoNombre.split(" ").slice(-2).join(" ")}
+                            </button>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
