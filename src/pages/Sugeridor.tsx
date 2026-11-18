@@ -14,10 +14,17 @@ import { mejorCoincidencia } from "../lib/texto";
 import { generarSugerencia } from "../lib/sugeridor";
 import {
   aplicarSugerencia,
+  cambiarEstadoPelicula,
   guardarSemana,
   marcarEnCartelera,
 } from "../lib/acciones";
-import { idSemana, semanaActual, semanasDelAnio } from "../lib/fechas";
+import {
+  fmtFecha,
+  idSemana,
+  semanaActual,
+  semanasDelAnio,
+  sumarUnMes,
+} from "../lib/fechas";
 import { todasLasSalas } from "../lib/ubicaciones";
 import { errorTexto } from "../lib/utilidades";
 import {
@@ -234,6 +241,67 @@ export default function Sugeridor() {
         previa.semana +
         " (sin las que ya salieron)",
     );
+  };
+
+  // Películas "En cartelera" que ya no tienen sala esta semana → ya salieron de cartelera
+  const sinFuncion = useMemo(() => {
+    const ids = new Set<string>();
+    salas.forEach((s) => s.peliculas.forEach((p) => ids.add(p)));
+    if (!ids.size) return [] as Pelicula[];
+    return d.peliculas.filter(
+      (p) => p.estado === "cartelera" && !ids.has(p.id),
+    );
+  }, [salas, d.peliculas]);
+
+  const marcarSalieron = async () => {
+    const lista = sinFuncion.slice();
+    const hasta = sumarUnMes(new Date());
+    const conMaterial = lista.filter((p) =>
+      d.materiales.some(
+        (m) =>
+          m.peliculaId === p.id && m.piezas.some((x) => x.estado === "activa"),
+      ),
+    );
+    const ok = await confirmar({
+      titulo: 'Marcar como "Salió de cartelera"',
+      mensaje: (
+        <>
+          <p>
+            Estas películas ya no tienen función esta semana:{" "}
+            <b>{lista.map((p) => p.titulo).join(", ")}</b>.
+          </p>
+          <p>
+            {conMaterial.length > 0 ? (
+              <>
+                El material de {conMaterial.length} de ellas se publicará en la
+                página de cinepolitos para que lo aparten. Fecha de entrega o
+                desecho: <b>{fmtFecha(hasta, true)}</b>.
+              </>
+            ) : (
+              "Ninguna tiene material activo, así que no se publicará nada para los cinepolitos."
+            )}
+          </p>
+        </>
+      ),
+      aceptar: "Marcar y publicar",
+    });
+    if (!ok) return;
+    setOcupado(true);
+    try {
+      for (const p of lista) {
+        await cambiarEstadoPelicula(
+          quien,
+          p,
+          "salio",
+          d.materiales.filter((m) => m.peliculaId === p.id),
+        );
+      }
+      toast(lista.length + ' película(s) marcada(s) como "Salió de cartelera"');
+    } catch (e) {
+      toast(errorTexto(e), "error");
+    } finally {
+      setOcupado(false);
+    }
   };
 
   const enSalasProximamente = useMemo(() => {
@@ -758,6 +826,24 @@ export default function Sugeridor() {
                 }
               >
                 Marcarlas "En cartelera"
+              </button>
+            </div>
+          )}
+
+          {sinFuncion.length > 0 && (
+            <div className="alerta alerta-aviso mt fila-entre">
+              <span>
+                Estas películas siguen "En cartelera" pero ya no tienen función
+                esta semana: <b>{sinFuncion.map((p) => p.titulo).join(", ")}</b>
+                . Al marcarlas como salidas, su material se publica para los
+                cinepolitos.
+              </span>
+              <button
+                className="btn btn-chico btn-vip"
+                onClick={marcarSalieron}
+                disabled={ocupado}
+              >
+                <Icono n="logout" /> Marcarlas "Salió de cartelera"
               </button>
             </div>
           )}
