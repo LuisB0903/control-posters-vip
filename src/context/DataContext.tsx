@@ -83,6 +83,7 @@ const aMaterial = (id: string, d: DocumentData): Material => ({
       }))
     : [],
   cinepolitos: d.cinepolitos || null,
+  propensoRobo: !!d.propensoRobo,
   notas: d.notas || "",
   creadoEn: d.creadoEn || null,
   creadoPor: d.creadoPor || "",

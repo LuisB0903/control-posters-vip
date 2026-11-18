@@ -4,7 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { useData } from "../context/DataContext";
 import { BotonTema, Cargando, Icono } from "./ui";
 import { alertasVersiones, materialesVencidos } from "../lib/alertas";
-import { idSemana, semanaISO } from "../lib/fechas";
+import { idSemana, semanaActual } from "../lib/fechas";
 import { sincronizarFilas } from "../lib/acciones";
 
 const MENU = [
@@ -76,7 +76,7 @@ export default function Layout() {
   const pendientes =
     alertasVersiones(data.materiales, data.categorias).length +
     materialesVencidos(data.materiales).length;
-  const hoy = semanaISO(new Date());
+  const hoy = semanaActual(data.config);
   const semana = data.semanas.find(
     (s) => s.id === idSemana(hoy.anio, hoy.semana),
   );

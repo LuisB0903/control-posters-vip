@@ -48,6 +48,12 @@ function agrupar(r: ResultadoSugerencia): Grupo[] {
       items: res((a) => a.zona.tipo === "lobby" && a.grupo === "standees"),
     },
     {
+      clave: "gerencia",
+      titulo: "Gerencia (zona vigilada)",
+      sub: sub("gerencia"),
+      items: res((a) => a.zona.tipo === "gerencia"),
+    },
+    {
       clave: "salas",
       titulo: "Salas",
       items: res((a) => a.zona.tipo === "sala").sort(
@@ -191,6 +197,8 @@ export function ResultadoVista({ r }: { r: ResultadoSugerencia }) {
   const cart = r.asignaciones.filter((a) => a.grupo === "carteleras");
   const taquilla = cart.filter((a) => a.zona.tipo === "taquilla");
   const lobby = cart.filter((a) => a.zona.tipo === "lobby");
+  const gerencia = cart.filter((a) => a.zona.tipo === "gerencia");
+  const vigiladas = lobby.concat(gerencia);
   const salas = cart
     .filter((a) => a.zona.tipo === "sala")
     .sort((a, b) => (a.zona.sala || 0) - (b.zona.sala || 0));
@@ -225,7 +233,8 @@ export function ResultadoVista({ r }: { r: ResultadoSugerencia }) {
             {usados(taquilla)})
           </span>
           <span>
-            <i style={{ background: "var(--oro)" }} /> Lobby ({usados(lobby)})
+            <i style={{ background: "var(--oro)" }} /> Lobby y gerencia (
+            {usados(vigiladas)})
           </span>
           <span>
             <i style={{ background: "var(--verde)" }} /> Pasillos (
@@ -299,28 +308,40 @@ export function ResultadoVista({ r }: { r: ResultadoSugerencia }) {
             <div className="zona-cab">
               <div>
                 <h3>
-                  <Icono n="weekend" /> Lobby
+                  <Icono n="shield" /> Zonas vigiladas
                 </h3>
                 <p>
-                  {usados(lobby)} de {total("lobby")} carteleras asignadas
+                  Lobby {usados(lobby)} de {total("lobby")} · Gerencia{" "}
+                  {usados(gerencia)} de {total("gerencia")}
                 </p>
               </div>
-              <span className="chip chip-oro chip-caps">Prestigio</span>
+              <span className="chip chip-oro chip-caps">Antirrobo</span>
             </div>
             <div className="taq-grid">
-              {lobby.length === 0 && (
+              {vigiladas.length === 0 && (
                 <span className="muted chico">Sin asignaciones.</span>
               )}
-              {lobby.map((a, i) => (
+              {vigiladas.map((a, i) => (
                 <div
                   key={i}
                   className={"taq-item" + (a.tipo === "vacio" ? " vacio" : "")}
                   style={{ flexDirection: "column", gap: 4 }}
                 >
+                  <span className="fila" style={{ gap: 4 }}>
+                    <span className="chip">
+                      {a.zona.tipo === "gerencia" ? "Gerencia" : "Lobby"}
+                    </span>
+                    {a.notas.some((n) => n.indexOf("robo") >= 0) && (
+                      <span className="chip chip-oro">
+                        <Icono n="shield_lock" /> Propenso a robo
+                      </span>
+                    )}
+                  </span>
                   <span className="caps texto-oro">
                     {a.tipo === "publicidad"
                       ? "Publicidad del cine"
-                      : a.notas[0] || "Próximo estreno"}
+                      : a.notas.filter((n) => n.indexOf("robo") < 0)[0] ||
+                        "Próximo estreno"}
                   </span>
                   <span className="taq-titulo">
                     {a.titulo}

@@ -108,6 +108,7 @@ export async function crearMaterial(
     cantidad: number;
     ubic: Ubicacion;
     notas: string;
+    propensoRobo?: boolean;
   },
 ): Promise<{ materialId: string; peliculaId: string | null }> {
   const b = writeBatch(db);
@@ -144,6 +145,7 @@ export async function crearMaterial(
     imagenUrl: datos.imagenUrl,
     piezas,
     cinepolitos: null,
+    propensoRobo: !!datos.propensoRobo,
     notas: datos.notas,
     creadoEn: serverTimestamp(),
     creadoPor: q.nombre,
@@ -348,6 +350,7 @@ export async function editarMaterial(
     notas?: string;
     categoriaId?: string;
     titulo?: string;
+    propensoRobo?: boolean;
   },
 ) {
   const b = writeBatch(db);
@@ -357,6 +360,24 @@ export async function editarMaterial(
     q,
     "Material editado",
     nombreMaterial(m) + ": " + Object.keys(cambios).join(", "),
+  );
+  await b.commit();
+}
+
+/** Marca o desmarca un material como propenso a robo (solo irá a lobby o gerencia) */
+export async function marcarPropensoRobo(
+  q: Quien,
+  m: Material,
+  valor: boolean,
+) {
+  const b = writeBatch(db);
+  b.update(doc(db, "materiales", m.id), { propensoRobo: valor });
+  log(
+    b,
+    q,
+    "Material editado",
+    nombreMaterial(m) +
+      (valor ? ": marcado como propenso a robo" : ": ya no es propenso a robo"),
   );
   await b.commit();
 }

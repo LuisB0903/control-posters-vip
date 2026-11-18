@@ -20,6 +20,7 @@ import {
   editarMaterial,
   eliminarMaterial,
   eliminarPelicula,
+  marcarPropensoRobo,
   moverPieza,
   nombreMaterial,
   publicarParaCinepolitos,
@@ -592,6 +593,14 @@ function MaterialFila({
             {esVieja && (
               <span className="chip chip-rojo">Versión anterior (cambiar)</span>
             )}
+            {m.propensoRobo && (
+              <span
+                className="chip chip-oro"
+                title="Solo se coloca en lobby o gerencia"
+              >
+                <Icono n="shield" /> Propenso a robo
+              </span>
+            )}
             {publicado && (
               <span className="chip chip-oro">
                 Cinepolitos hasta {fmtFecha(pub!.hasta)}
@@ -655,6 +664,28 @@ function MaterialFila({
               {verPiezas ? "Ocultar" : "Ver piezas"} ({piezas.length})
             </button>
           )}
+          <button
+            className="btn-icono chico"
+            title={
+              m.propensoRobo
+                ? "Quitar marca de propenso a robo"
+                : "Marcar como propenso a robo (solo lobby o gerencia)"
+            }
+            onClick={() =>
+              ejecutar(
+                () => marcarPropensoRobo(quien, m, !m.propensoRobo),
+                m.propensoRobo
+                  ? "Ya no es propenso a robo"
+                  : "Marcado como propenso a robo",
+              )
+            }
+          >
+            <Icono
+              n={m.propensoRobo ? "shield_lock" : "shield"}
+              className={m.propensoRobo ? "texto-oro" : ""}
+              relleno={m.propensoRobo}
+            />
+          </button>
           <button
             className="btn-icono chico"
             title="Agregar piezas"
@@ -873,12 +904,14 @@ function EditarMaterial({
   const [notas, setNotas] = useState(m.notas);
   const [cat, setCat] = useState(m.categoriaId);
   const [titulo, setTitulo] = useState(m.titulo);
+  const [robo, setRobo] = useState(!!m.propensoRobo);
 
   const guardar = () =>
     editarMaterial(quien, m, {
       version,
       imagenUrl: imagen.trim() || null,
       notas,
+      propensoRobo: robo,
       categoriaId: cat,
       ...(m.peliculaId ? {} : { titulo: titulo.trim() }),
     })
@@ -963,6 +996,11 @@ function EditarMaterial({
           <span>Notas</span>
           <input value={notas} onChange={(e) => setNotas(e.target.value)} />
         </label>
+        <Interruptor
+          activo={robo}
+          onCambio={setRobo}
+          etiqueta="Propenso a robo (solo lobby o gerencia)"
+        />
       </div>
     </Modal>
   );

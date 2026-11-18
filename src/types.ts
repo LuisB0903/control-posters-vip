@@ -68,6 +68,7 @@ export interface Material {
   imagenUrl: string | null;
   piezas: Pieza[];
   cinepolitos: Cinepolitos | null;
+  propensoRobo: boolean; // solo se coloca en zonas vigiladas (lobby y gerencia)
   notas: string;
   creadoEn: Timestamp | null;
   creadoPor: string;
@@ -160,6 +161,9 @@ export interface ConfigGeneral {
   standeesChicosLobby: number; // 0 = sin límite
   reglaRepetida: ReglaRepetida;
   entregaContacto: string; // quiénes entregan, se muestra a los cinepolitos
+  gerenciaPasillo: "pasillo13" | "pasillo410" | "ninguno"; // pasillo donde están físicamente las carteleras de gerencia
+  cambioSemanaDia: number; // 1 = lunes … 7 = domingo
+  cambioSemanaHora: number; // 0 a 23
 }
 
 export const CONFIG_DEFAULT: ConfigGeneral = {
@@ -179,6 +183,9 @@ export const CONFIG_DEFAULT: ConfigGeneral = {
   standeesChicosLobby: 0,
   reglaRepetida: "publicidad_todas",
   entregaContacto: "Atziri, Andre o Luis",
+  gerenciaPasillo: "pasillo13",
+  cambioSemanaDia: 2,
+  cambioSemanaHora: 20,
 };
 
 export const CATEGORIAS_DEFAULT: Categoria[] = [

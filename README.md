@@ -314,7 +314,13 @@ Las personas del aviso se cambian en **Configuración → Quién entrega el mate
   - No hay de ninguna → publicidad del cine en ambas.
 - La regla de "no repetir en el mismo pasillo" **no aplica a las salas**.
 
-**Lobby (2) y pasillos**
+**Zonas vigiladas: Lobby (2) y Gerencia (2)**
+
+- Son las carteleras que vigila la cámara. Gerencia está físicamente en el pasillo 1-3: sus 2 carteleras cuentan dentro de las 27 de ese pasillo (quedan 27 − 3 salas − 2 gerencia = **22 libres**) y no se repite el mismo póster en gerencia y en el pasillo 1-3 (se puede cambiar en Configuración).
+- Primero van los materiales marcados como **propensos a robo** (escudo 🛡 en Inventario o al registrar). Estos **nunca** se colocan en pasillos; si no caben en lobby ni gerencia, se quedan en bodega con aviso. En una sala solo se usan si es el único póster de esa película.
+- Después, las películas próximas con mayor prioridad y, si sobra espacio, publicidad del cine.
+
+**Lobby y pasillos (resto)**
 
 - Solo entran películas **Próximamente**. Quedan fuera las que ya están en cartelera, las que se estrenan esta semana y las que están en salas.
 - Orden de preferencia (no estricto): Prioridades VIP → Apoyo especial → Cajas de luz lobby y pasillos → el resto por fecha de estreno.
@@ -328,7 +334,7 @@ Las personas del aviso se cambian en **Configuración → Quién entrega el mate
 - Grandes: solo los de la lista **Standees básicos** del cronograma, en orden, a taquilla (hasta el número configurado).
 - Pequeños: primero a taquilla (cantidad configurada) y los restantes al lobby.
 
-**Gerencia** se maneja a mano: el sugeridor nunca toma piezas de ahí.
+**Semana actual:** el sistema cambia de semana el día y hora de **Configuración → Cambio de semana automático** (por defecto martes 8:00 p.m.). En el sugeridor la semana y el año se eligen con listas desplegables (hasta la 52, o la 53 en los años que la tienen, como 2026).
 
 ---
 

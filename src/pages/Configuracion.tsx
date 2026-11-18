@@ -1,10 +1,11 @@
 import { useEffect, useState, type ChangeEvent } from "react";
 import { useData } from "../context/DataContext";
 import { useQuien } from "../context/AuthContext";
-import { useUI } from "../components/ui";
+import { Icono, useUI } from "../components/ui";
 import { guardarCategorias, guardarConfig } from "../lib/acciones";
 import { probarClave } from "../lib/tmdb";
 import { errorTexto } from "../lib/utilidades";
+import { DIAS_SEMANA, semanaActual } from "../lib/fechas";
 import type { Categoria, ConfigGeneral, RolCategoria } from "../types";
 
 const ROLES: { id: RolCategoria; t: string }[] = [
@@ -215,7 +216,28 @@ export default function Configuracion() {
                 value={c.gerenciaEspacios}
                 onChange={num("gerenciaEspacios")}
               />
-              <small>Se controla a mano, el sugeridor no la toca</small>
+              <small>Zona vigilada por cámara (frente a gerencia)</small>
+            </label>
+            <label className="campo">
+              <span>Gerencia está físicamente en</span>
+              <select
+                value={c.gerenciaPasillo || "pasillo13"}
+                onChange={(e) =>
+                  setC({
+                    ...c,
+                    gerenciaPasillo: e.target
+                      .value as ConfigGeneral["gerenciaPasillo"],
+                  })
+                }
+              >
+                <option value="pasillo13">Pasillo 1-3</option>
+                <option value="pasillo410">Pasillo 4-10</option>
+                <option value="ninguno">Fuera de los pasillos</option>
+              </select>
+              <small>
+                Cuenta dentro del total de ese pasillo y no se repite póster con
+                él
+              </small>
             </label>
             <label className="campo">
               <span>Standees grandes en taquilla</span>
@@ -245,8 +267,23 @@ export default function Configuracion() {
           </div>
           <p className="muted chico">
             Carteleras libres para pósters: pasillo 1-3 ={" "}
-            {Math.max(0, c.pasillo13Total - aLista(salas13).length)}, pasillo
-            4-10 = {Math.max(0, c.pasillo410Total - aLista(salas410).length)}.
+            {Math.max(
+              0,
+              c.pasillo13Total -
+                aLista(salas13).length -
+                ((c.gerenciaPasillo || "pasillo13") === "pasillo13"
+                  ? c.gerenciaEspacios
+                  : 0),
+            )}
+            , pasillo 4-10 ={" "}
+            {Math.max(
+              0,
+              c.pasillo410Total -
+                aLista(salas410).length -
+                (c.gerenciaPasillo === "pasillo410" ? c.gerenciaEspacios : 0),
+            )}
+            . Lobby y gerencia son zonas vigiladas: ahí van los pósters marcados
+            como propensos a robo.
           </p>
           <button
             className="btn btn-primario mt"
@@ -255,6 +292,77 @@ export default function Configuracion() {
             Guardar espacios
           </button>
         </div>
+      </div>
+
+      <div className="tarjeta">
+        <div className="tarjeta-cab">
+          <div className="panel-titulo">
+            <span className="icono-caja oro">
+              <Icono n="event_repeat" />
+            </span>
+            <div>
+              <h3>Cambio de semana automático</h3>
+              <p>
+                Día y hora en que el sistema pasa a la siguiente semana (Inicio,
+                menú y sugeridor). Ej. martes 8:00 p.m.: hasta entonces se sigue
+                mostrando la semana anterior.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="rejilla rejilla-3" style={{ alignItems: "end" }}>
+          <label className="campo">
+            <span>Día</span>
+            <select
+              value={c.cambioSemanaDia || 1}
+              onChange={(e) =>
+                setC({ ...c, cambioSemanaDia: parseInt(e.target.value, 10) })
+              }
+            >
+              {DIAS_SEMANA.map((dia, i) => (
+                <option key={dia} value={i + 1}>
+                  {dia}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="campo">
+            <span>Hora</span>
+            <select
+              value={c.cambioSemanaHora || 0}
+              onChange={(e) =>
+                setC({ ...c, cambioSemanaHora: parseInt(e.target.value, 10) })
+              }
+            >
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {(h % 12 === 0 ? 12 : h % 12) +
+                    ":00 " +
+                    (h < 12 ? "a.m." : "p.m.")}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            className="btn btn-primario"
+            onClick={() =>
+              guardar(
+                "Cambio de semana: " +
+                  DIAS_SEMANA[(c.cambioSemanaDia || 1) - 1] +
+                  " " +
+                  (c.cambioSemanaHora || 0) +
+                  ":00",
+              )
+            }
+          >
+            Guardar
+          </button>
+        </div>
+        <p className="muted chico" style={{ marginBottom: 0 }}>
+          Con esta configuración, ahora mismo es la{" "}
+          <b className="negrita">semana {semanaActual(c).semana}</b> de{" "}
+          {semanaActual(c).anio}.
+        </p>
       </div>
 
       <div className="tarjeta">

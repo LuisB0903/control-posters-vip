@@ -7,7 +7,9 @@
  *  2. Salas: sala exclusiva → póster de su película (aunque se repita en varias salas del mismo
  *     pasillo, mientras alcancen las piezas). Sala compartida → póster de la otra película.
  *     Sin póster → publicidad del cine.
- *  3. Lobby (2): películas próximas con mayor prioridad.
+ *  3. Zonas vigiladas, Lobby (2) y Gerencia (2): primero los pósters "propensos a robo", luego las
+ *     películas próximas con mayor prioridad. Gerencia está físicamente en un pasillo (por defecto 1-3),
+ *     así que cuenta para la regla de no repetir en ese pasillo. Los pósters propensos a robo no van a pasillos.
  *  4. Pasillos: películas próximas (no estrenadas ni en transmisión esta semana).
  *     Nunca se repite el mismo póster (ni otra versión de la misma película) en el mismo pasillo.
  *     Con "no repetir en ningún pasillo": primero publicidad del cine y, si aún falta, se repite
@@ -52,6 +54,7 @@ type Pasillo = "pasillo13" | "pasillo410";
 const PASILLOS: Pasillo[] = ["pasillo13", "pasillo410"];
 const TAQUILLA: Ubicacion = { tipo: "taquilla", sala: null };
 const LOBBY: Ubicacion = { tipo: "lobby", sala: null };
+const GERENCIA: Ubicacion = { tipo: "gerencia", sala: null };
 
 function idsActivos(lista: ItemLista[]): string[] {
   const r: string[] = [];
@@ -80,10 +83,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
   /* ── utilidades de piezas ── */
   function disponibles(m: Material): Pieza[] {
     return m.piezas.filter(
-      (p) =>
-        p.estado === "activa" &&
-        p.ubic.tipo !== "gerencia" &&
-        !usadas.has(clave(m, p.n)),
+      (p) => p.estado === "activa" && !usadas.has(clave(m, p.n)),
     );
   }
   function prioridadOrigen(p: Pieza, destino: Ubicacion): number {
@@ -96,10 +96,19 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
       .filter((m) => m.peliculaId === peliculaId && roles.indexOf(rol(m)) >= 0)
       .sort((a, b) => b.version - a.version);
   }
-  function tieneDisponible(peliculaId: string, roles: RolCategoria[]): boolean {
-    return materialesDe(peliculaId, roles).some(
-      (m) => disponibles(m).length > 0,
+  /** Pósters normales (no propensos a robo) de una película */
+  function segurosDe(peliculaId: string): Material[] {
+    return materialesDe(peliculaId, ["cartelera"]).filter(
+      (m) => !m.propensoRobo,
     );
+  }
+  function roboDe(peliculaId: string): Material[] {
+    return materialesDe(peliculaId, ["cartelera"]).filter(
+      (m) => !!m.propensoRobo,
+    );
+  }
+  function hayPieza(lista: Material[]): boolean {
+    return lista.some((m) => disponibles(m).length > 0);
   }
   /** Toma la pieza de la versión más nueva disponible */
   function tomar(
@@ -119,9 +128,21 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
     return null;
   }
   const publicidades = e.materiales.filter((m) => rol(m) === "publicidad");
-  function tomarPublicidad(destino: Ubicacion, evitar: Set<string>) {
+  /** modo 'seguro' = sin propensos a robo (salas y pasillos); 'robo' = solo propensos; 'todas' = cualquiera, propensos primero */
+  function tomarPublicidad(
+    destino: Ubicacion,
+    evitar: Set<string>,
+    modo: "seguro" | "robo" | "todas" = "seguro",
+  ) {
     const opciones = publicidades
       .filter((m) => !evitar.has(m.id))
+      .filter((m) =>
+        modo === "seguro"
+          ? !m.propensoRobo
+          : modo === "robo"
+            ? !!m.propensoRobo
+            : true,
+      )
       .map((m) => {
         const ds = disponibles(m).sort(
           (a, b) => prioridadOrigen(a, destino) - prioridadOrigen(b, destino),
@@ -130,7 +151,11 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
       })
       .filter((x) => !!x.p)
       .sort(
-        (a, b) => prioridadOrigen(a.p, destino) - prioridadOrigen(b.p, destino),
+        (a, b) =>
+          (modo === "todas"
+            ? Number(!!b.m.propensoRobo) - Number(!!a.m.propensoRobo)
+            : 0) ||
+          prioridadOrigen(a.p, destino) - prioridadOrigen(b.p, destino),
       );
     if (!opciones.length) return null;
     usadas.add(clave(opciones[0].m, opciones[0].p.n));
@@ -264,6 +289,21 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
     }
   const conPosterEnSala = new Set<string>();
 
+  /** En sala se prefiere un póster normal; si solo hay propensos a robo, se usa y se avisa */
+  function tomarParaSala(pid: string, zona: Ubicacion) {
+    const r = tomar(segurosDe(pid), zona);
+    if (r) return r;
+    const rr = tomar(roboDe(pid), zona);
+    if (rr)
+      avisos.push(
+        etiquetaUbic(zona) +
+          ': solo hay pósters de "' +
+          tituloDe(pid) +
+          '" marcados como propensos a robo; se usa uno.',
+      );
+    return rr;
+  }
+
   /** Publicidad en sala: de preferencia una que no se repita en ese pasillo; si no hay, se permite repetir */
   function publicidadEnSala(zona: Ubicacion, notas: string[]) {
     const pas = pasilloDeSala(cfg, zona.sala || 0);
@@ -315,7 +355,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
               enSalas.filter((n) => n !== s.sala).join(", "),
           ]
         : [];
-    const r = tomar(materialesDe(pid, ["cartelera"]), zona);
+    const r = tomarParaSala(pid, zona);
     if (r) {
       conPosterEnSala.add(pid);
       agregar(zona, "carteleras", r, "pelicula", notas);
@@ -354,7 +394,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
     const sinPoster: string[] = [];
     let colocada = false;
     for (const pid of orden) {
-      const r = tomar(materialesDe(pid, ["cartelera"]), zona);
+      const r = tomarParaSala(pid, zona);
       if (!r) {
         sinPoster.push(tituloDe(pid));
         continue;
@@ -412,42 +452,140 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
         a.titulo.localeCompare(b.titulo),
     );
 
-  /* ── 3. LOBBY ── */
-  const enLobby = new Set<string>();
+  /* ── 3. ZONAS VIGILADAS: LOBBY Y GERENCIA ── */
+  const pasGerencia: Pasillo | null =
+    cfg.gerenciaPasillo === "ninguno"
+      ? null
+      : cfg.gerenciaPasillo || "pasillo13";
+  const vigiladas = [
+    { zona: LOBBY, cap: cfg.lobbyEspacios, puestos: new Set<string>() },
+    { zona: GERENCIA, cap: cfg.gerenciaEspacios, puestos: new Set<string>() },
+  ];
+  function zonaVigiladaPara(id: string) {
+    return vigiladas.filter(
+      (v) =>
+        v.puestos.size < v.cap &&
+        !v.puestos.has(id) &&
+        !(
+          v.zona.tipo === "gerencia" &&
+          pasGerencia &&
+          puesto[pasGerencia].has(id)
+        ),
+    )[0];
+  }
+  function ponerEnVigilada(
+    v: (typeof vigiladas)[number],
+    id: string,
+    r: { m: Material; p: Pieza; masNueva?: number },
+    tipo: Asignacion["tipo"],
+    notas: string[],
+  ) {
+    v.puestos.add(id);
+    if (v.zona.tipo === "gerencia" && pasGerencia) puesto[pasGerencia].add(id);
+    agregar(v.zona, "carteleras", r, tipo, notas);
+  }
+
+  // Pase A: pósters propensos a robo (película o publicidad)
+  const roboSinLugar: string[] = [];
   for (const p of candidatas) {
-    if (enLobby.size >= cfg.lobbyEspacios) break;
-    const r = tomar(materialesDe(p.id, ["cartelera"]), LOBBY);
-    if (!r) continue;
-    agregar(
-      LOBBY,
-      "carteleras",
-      r,
-      "pelicula",
-      prioridad(p) < 1000 ? ["Prioridad del cronograma"] : [],
+    if (!hayPieza(roboDe(p.id))) continue;
+    const v = zonaVigiladaPara(p.id);
+    if (!v) {
+      roboSinLugar.push(p.titulo);
+      continue;
+    }
+    const r = tomar(roboDe(p.id), v.zona);
+    if (r)
+      ponerEnVigilada(
+        v,
+        p.id,
+        r,
+        "pelicula",
+        ["Propenso a robo: zona vigilada"].concat(
+          prioridad(p) < 1000 ? ["Prioridad del cronograma"] : [],
+        ),
+      );
+  }
+  for (const m of publicidades.filter((x) => x.propensoRobo)) {
+    if (!disponibles(m).length) continue;
+    const v = zonaVigiladaPara(m.id);
+    if (!v) {
+      roboSinLugar.push(m.titulo);
+      continue;
+    }
+    const rp = tomarPublicidad(
+      v.zona,
+      new Set(
+        Array.from(publicidades.map((x) => x.id)).filter((id) => id !== m.id),
+      ),
+      "robo",
     );
-    enLobby.add(p.id);
+    if (rp)
+      ponerEnVigilada(v, m.id, rp, "publicidad", [
+        "Propenso a robo: zona vigilada",
+      ]);
   }
-  while (enLobby.size < cfg.lobbyEspacios) {
-    const rp = tomarPublicidad(LOBBY, enLobby);
-    if (!rp) break;
-    enLobby.add(rp.m.id);
-    agregar(LOBBY, "carteleras", rp, "publicidad", [
-      "Relleno con publicidad del cine",
-    ]);
-  }
-  if (enLobby.size < cfg.lobbyEspacios)
+  if (roboSinLugar.length)
     avisos.push(
-      "Lobby: quedan " +
-        (cfg.lobbyEspacios - enLobby.size) +
-        " espacio(s) vacío(s).",
+      "Propensos a robo sin lugar en lobby ni gerencia (se quedan en bodega): " +
+        roboSinLugar.join(", ") +
+        ".",
     );
+
+  // Pase B: películas próximas por prioridad (pósters normales)
+  for (const p of candidatas) {
+    if (!vigiladas.some((v) => v.puestos.size < v.cap)) break;
+    if (!hayPieza(segurosDe(p.id))) continue;
+    const v = zonaVigiladaPara(p.id);
+    if (!v) continue;
+    const r = tomar(segurosDe(p.id), v.zona);
+    if (r)
+      ponerEnVigilada(
+        v,
+        p.id,
+        r,
+        "pelicula",
+        prioridad(p) < 1000 ? ["Prioridad del cronograma"] : [],
+      );
+  }
+  // Pase C: publicidad del cine
+  for (const v of vigiladas) {
+    while (v.puestos.size < v.cap) {
+      const evitar = new Set<string>(v.puestos);
+      if (v.zona.tipo === "gerencia" && pasGerencia)
+        puesto[pasGerencia].forEach((id) => evitar.add(id));
+      const rp = tomarPublicidad(v.zona, evitar, "todas");
+      if (!rp) break;
+      ponerEnVigilada(v, rp.m.id, rp, "publicidad", [
+        "Relleno con publicidad del cine",
+      ]);
+    }
+    if (v.puestos.size < v.cap)
+      avisos.push(
+        etiquetaUbic(v.zona) +
+          ": quedan " +
+          (v.cap - v.puestos.size) +
+          " espacio(s) vacío(s).",
+      );
+  }
 
   /* ── 4. PASILLOS ── */
   const salas13 = cfg.pasillo13Salas.length;
   const salas410 = cfg.pasillo410Salas.length;
+  // carteleras libres = total del pasillo − salas − gerencia (si está en ese pasillo)
   const cap: Record<Pasillo, number> = {
-    pasillo13: Math.max(0, cfg.pasillo13Total - salas13),
-    pasillo410: Math.max(0, cfg.pasillo410Total - salas410),
+    pasillo13: Math.max(
+      0,
+      cfg.pasillo13Total -
+        salas13 -
+        (pasGerencia === "pasillo13" ? cfg.gerenciaEspacios : 0),
+    ),
+    pasillo410: Math.max(
+      0,
+      cfg.pasillo410Total -
+        salas410 -
+        (pasGerencia === "pasillo410" ? cfg.gerenciaEspacios : 0),
+    ),
   };
   const cuenta: Record<Pasillo, number> = { pasillo13: 0, pasillo410: 0 };
   const libre = (z: Pasillo) => cap[z] - cuenta[z];
@@ -459,7 +597,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
     nota: string | null,
   ): boolean {
     if (libre(z) <= 0 || puesto[z].has(p.id)) return false;
-    const r = tomar(materialesDe(p.id, ["cartelera"]), zonaDe(z));
+    const r = tomar(segurosDe(p.id), zonaDe(z));
     if (!r) return false;
     const notas: string[] = [];
     if (prioridad(p) < 1000) notas.push("Prioridad del cronograma");
@@ -472,7 +610,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
 
   // Pase 1: cada película en un pasillo (el que tenga más espacio libre proporcional)
   for (const p of candidatas) {
-    if (!tieneDisponible(p.id, ["cartelera"])) continue;
+    if (!hayPieza(segurosDe(p.id))) continue;
     const orden = PASILLOS.slice().sort(
       (a, b) =>
         (cap[b] ? libre(b) / cap[b] : -1) - (cap[a] ? libre(a) / cap[a] : -1),
@@ -580,7 +718,7 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
   for (const m of e.materiales) {
     if (rol(m) === "ninguno") continue;
     for (const p of m.piezas) {
-      if (p.estado !== "activa" || p.ubic.tipo === "gerencia") continue;
+      if (p.estado !== "activa") continue;
       const dest =
         destinoDe.get(m.id + "#" + p.n) ||
         (zonaGestionada(p.ubic) ? BODEGA : null);
@@ -617,6 +755,11 @@ export function generarSugerencia(e: EntradaSugeridor): ResultadoSugerencia {
       zona: LOBBY,
       usados: cuentaZona((a) => a.zona.tipo === "lobby"),
       total: cfg.lobbyEspacios,
+    },
+    {
+      zona: GERENCIA,
+      usados: cuentaZona((a) => a.zona.tipo === "gerencia"),
+      total: cfg.gerenciaEspacios,
     },
     {
       zona: zonaDe("pasillo13"),

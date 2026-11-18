@@ -17,7 +17,7 @@ import {
   fmtFecha,
   fmtFechaHora,
   idSemana,
-  semanaISO,
+  semanaActual,
 } from "../lib/fechas";
 import { Encabezado, Icono, Poster, useUI } from "../components/ui";
 import { moverPiezasABodega, nombreMaterial } from "../lib/acciones";
@@ -97,8 +97,7 @@ export default function Inicio() {
         porZona[p.ubic.tipo] = (porZona[p.ubic.tipo] || 0) + 1;
         if (p.ubic.tipo === "sala" && p.ubic.sala)
           salasOcupadas.add(p.ubic.sala);
-      } else if (p.ubic.tipo === "gerencia")
-        porZona.gerencia = (porZona.gerencia || 0) + 1;
+      }
       if (
         (rol === "standee_chico" || rol === "standee_grande") &&
         p.ubic.tipo === "lobby"
@@ -129,7 +128,7 @@ export default function Inicio() {
   ).length;
 
   /* ── semana ── */
-  const hoy = semanaISO(new Date());
+  const hoy = semanaActual(d.config);
   const semana = d.semanas.find((s) => s.id === idSemana(hoy.anio, hoy.semana));
   const urlPublica = window.location.href.split("#")[0] + "#/";
   const copiar = () => {
@@ -146,13 +145,18 @@ export default function Inicio() {
       .catch((e) => toast(errorTexto(e), "error"));
 
   /* ── distribución por ubicación ── */
+  const gerPas = d.config.gerenciaPasillo || "pasillo13";
   const cap13 = Math.max(
     0,
-    d.config.pasillo13Total - d.config.pasillo13Salas.length,
+    d.config.pasillo13Total -
+      d.config.pasillo13Salas.length -
+      (gerPas === "pasillo13" ? d.config.gerenciaEspacios : 0),
   );
   const cap410 = Math.max(
     0,
-    d.config.pasillo410Total - d.config.pasillo410Salas.length,
+    d.config.pasillo410Total -
+      d.config.pasillo410Salas.length -
+      (gerPas === "pasillo410" ? d.config.gerenciaEspacios : 0),
   );
   const totalSalas =
     d.config.pasillo13Salas.length + d.config.pasillo410Salas.length;
@@ -176,7 +180,7 @@ export default function Inicio() {
     },
     {
       tipo: "lobby",
-      area: "Exhibición",
+      area: "Vigilada",
       nombre: "Lobby",
       usados: porZona.lobby || 0,
       total: d.config.lobbyEspacios,
@@ -212,12 +216,12 @@ export default function Inicio() {
     },
     {
       tipo: "gerencia",
-      area: "Oficina",
+      area: "Vigilada",
       nombre: "Gerencia",
       usados: porZona.gerencia || 0,
       total: d.config.gerenciaEspacios,
       icono: "shield",
-      desc: "Control manual",
+      desc: "Zona vigilada",
     },
   ];
 
@@ -589,7 +593,7 @@ export default function Inicio() {
           const lleno = z.total > 0 && z.usados >= z.total;
           const vacantes = Math.max(0, z.total - z.usados);
           const pct = z.total ? Math.min(100, (z.usados / z.total) * 100) : 0;
-          const libre = z.tipo !== "gerencia" && vacantes > 0;
+          const libre = vacantes > 0;
           return (
             <div key={z.tipo} className={"ubic" + (libre ? " libre" : "")}>
               <div className="ubic-cab">
@@ -609,12 +613,7 @@ export default function Inicio() {
                 <div
                   style={{
                     width: pct + "%",
-                    background:
-                      z.tipo === "gerencia"
-                        ? "var(--oro)"
-                        : lleno
-                          ? "var(--rojo)"
-                          : "var(--verde)",
+                    background: lleno ? "var(--rojo)" : "var(--verde)",
                   }}
                 />
               </div>

@@ -17,7 +17,7 @@ import {
   guardarSemana,
   marcarEnCartelera,
 } from "../lib/acciones";
-import { idSemana, semanaISO } from "../lib/fechas";
+import { idSemana, semanaActual, semanasDelAnio } from "../lib/fechas";
 import { todasLasSalas } from "../lib/ubicaciones";
 import { errorTexto } from "../lib/utilidades";
 import {
@@ -95,7 +95,7 @@ export default function Sugeridor() {
   const quien = useQuien();
   const { toast, confirmar, imprimir } = useUI();
   const [params] = useSearchParams();
-  const hoy = semanaISO(new Date());
+  const hoy = semanaActual(d.config);
 
   const [anio, setAnio] = useState(hoy.anio);
   const [semana, setSemana] = useState(hoy.semana);
@@ -351,34 +351,54 @@ export default function Sugeridor() {
           <div className="selector-semana">
             <div className="fila" style={{ flexWrap: "nowrap" }}>
               <Icono n="calendar_month" className="texto-oro" />
-              <label className="campo" style={{ width: 80 }}>
+              <label className="campo" style={{ flex: 1, minWidth: 150 }}>
                 <span>Semana</span>
-                <input
+                <select
                   className="compacto"
-                  type="number"
-                  min={1}
-                  max={53}
                   value={semana}
-                  onChange={(e) =>
-                    setSemana(
-                      Math.min(
-                        53,
-                        Math.max(1, parseInt(e.target.value, 10) || 1),
-                      ),
-                    )
-                  }
-                />
+                  onChange={(e) => setSemana(parseInt(e.target.value, 10))}
+                >
+                  {Array.from(
+                    { length: Math.max(52, semanasDelAnio(anio)) },
+                    (_, i) => i + 1,
+                  ).map((n) => {
+                    const guardada = d.semanas.find(
+                      (x) => x.id === idSemana(anio, n),
+                    );
+                    return (
+                      <option key={n} value={n}>
+                        Semana {n}
+                        {anio === hoy.anio && n === hoy.semana
+                          ? " · actual"
+                          : ""}
+                        {guardada
+                          ? guardada.estado === "aplicada"
+                            ? " · aplicada"
+                            : " · borrador"
+                          : ""}
+                      </option>
+                    );
+                  })}
+                </select>
               </label>
-              <label className="campo" style={{ width: 90 }}>
+              <label className="campo" style={{ width: 92 }}>
                 <span>Año</span>
-                <input
+                <select
                   className="compacto"
-                  type="number"
                   value={anio}
-                  onChange={(e) =>
-                    setAnio(parseInt(e.target.value, 10) || hoy.anio)
-                  }
-                />
+                  onChange={(e) => {
+                    const a = parseInt(e.target.value, 10);
+                    const max = Math.max(52, semanasDelAnio(a));
+                    setAnio(a);
+                    if (semana > max) setSemana(max);
+                  }}
+                >
+                  {[hoy.anio - 1, hoy.anio, hoy.anio + 1].map((a) => (
+                    <option key={a} value={a}>
+                      {a}
+                    </option>
+                  ))}
+                </select>
               </label>
             </div>
             <div className="fila-entre">
