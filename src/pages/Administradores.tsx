@@ -4,7 +4,7 @@ import { doc, serverTimestamp, writeBatch, collection } from 'firebase/firestore
 import { appSecundaria, auth, correoDeId, db, limpiarIdAdmin } from '../firebase';
 import { useData } from '../context/DataContext';
 import { useQuien } from '../context/AuthContext';
-import { useUI } from '../components/ui';
+import { CampoClave, useUI } from '../components/ui';
 import { cambiarAdminActivo, registrarMovimiento } from '../lib/acciones';
 import { errorTexto } from '../lib/utilidades';
 
@@ -136,8 +136,8 @@ export default function Administradores() {
               </label>
               <label className="campo">
                 <span>Contraseña inicial</span>
-                <input type="text" value={clave} onChange={(e) => setClave(e.target.value)} required />
-                <small>Compártela con la persona; después puede cambiarla desde aquí.</small>
+                <CampoClave value={clave} onChange={setClave} required minLength={6} />
+                <small>Mínimo 6 caracteres. Mantén presionado el ojo para verla. Compártela con la persona; después puede cambiarla desde aquí.</small>
               </label>
               <button className="btn btn-primario" disabled={ocupado}>
                 {ocupado ? 'Creando…' : 'Crear administrador'}
@@ -149,11 +149,11 @@ export default function Administradores() {
             <div className="pila">
               <label className="campo">
                 <span>Contraseña actual</span>
-                <input type="password" value={actual} onChange={(e) => setActual(e.target.value)} required />
+                <CampoClave value={actual} onChange={setActual} required autoComplete="current-password" />
               </label>
               <label className="campo">
                 <span>Nueva contraseña</span>
-                <input type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} required />
+                <CampoClave value={nueva} onChange={setNueva} required minLength={6} />
               </label>
               <button className="btn">Cambiar contraseña</button>
             </div>

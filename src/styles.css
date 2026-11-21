@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 :root,
-[data-tema="oscuro"] {
+[data-tema='oscuro'] {
   --fondo: #0f1014;
   --fondo-2: #0d0e12;
   --superficie: #14161d;
@@ -55,11 +55,11 @@
   --r-xl: 12px;
   --cab-h: 68px;
   --lat-w: 252px;
-  --f-titulo: "Plus Jakarta Sans", "Inter", system-ui, sans-serif;
-  --f-texto: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-titulo: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  --f-texto: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
-[data-tema="claro"] {
+[data-tema='claro'] {
   --fondo: #f5f4f1;
   --fondo-2: #ecebe7;
   --superficie: #ffffff;
@@ -204,7 +204,7 @@ hr {
   display: none !important;
 }
 .mono {
-  font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  font-family: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 .caps {
   font-size: 11px;
@@ -225,7 +225,7 @@ hr {
 
 /* Íconos (Material Symbols) */
 .ico {
-  font-family: "Material Symbols Outlined";
+  font-family: 'Material Symbols Outlined';
   font-weight: normal;
   font-style: normal;
   font-size: 20px;
@@ -236,24 +236,16 @@ hr {
   white-space: nowrap;
   word-wrap: normal;
   direction: ltr;
-  -webkit-font-feature-settings: "liga";
-  font-feature-settings: "liga";
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
-  font-variation-settings:
-    "FILL" 0,
-    "wght" 400,
-    "GRAD" 0,
-    "opsz" 24;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   flex-shrink: 0;
   overflow: hidden;
   width: 1em;
 }
 .ico-relleno {
-  font-variation-settings:
-    "FILL" 1,
-    "wght" 500,
-    "GRAD" 0,
-    "opsz" 24;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
 }
 .ico-14 {
   font-size: 14px;
@@ -397,9 +389,7 @@ hr {
   font-size: 14px;
   white-space: nowrap;
   border-bottom: 2px solid transparent;
-  transition:
-    color 0.15s,
-    background 0.15s;
+  transition: color 0.15s, background 0.15s;
 }
 .nav-top a:hover {
   color: var(--texto);
@@ -500,9 +490,7 @@ hr {
   font-family: var(--f-titulo);
   font-weight: 600;
   font-size: 14.5px;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 .nav-item:hover {
   background: var(--superficie);
@@ -712,7 +700,7 @@ hr {
     color: var(--rojo-texto);
   }
   .nav-movil .activo::before {
-    content: "";
+    content: '';
     position: absolute;
     top: 0;
     left: 28%;
@@ -743,12 +731,7 @@ hr {
   position: relative;
   overflow: hidden;
   border-radius: var(--r-xl);
-  background: linear-gradient(
-    100deg,
-    var(--hero-a),
-    var(--hero-b) 55%,
-    var(--superficie)
-  );
+  background: linear-gradient(100deg, var(--hero-a), var(--hero-b) 55%, var(--superficie));
   border: 1px solid var(--borde);
   padding: 24px 26px;
   margin-bottom: 22px;
@@ -756,7 +739,7 @@ hr {
 }
 .hero::before,
 .cabecera::before {
-  content: "";
+  content: '';
   position: absolute;
   right: -80px;
   top: -90px;
@@ -769,7 +752,7 @@ hr {
 }
 .hero::after,
 .cabecera::after {
-  content: "";
+  content: '';
   position: absolute;
   right: 32%;
   bottom: -110px;
@@ -1003,7 +986,7 @@ hr {
   box-shadow: var(--sombra-chica);
 }
 .metrica::after {
-  content: "";
+  content: '';
   position: absolute;
   right: -24px;
   bottom: -24px;
@@ -1095,12 +1078,7 @@ hr {
   letter-spacing: 0.01em;
   cursor: pointer;
   text-decoration: none;
-  transition:
-    transform 0.06s,
-    background 0.15s,
-    border-color 0.15s,
-    box-shadow 0.15s,
-    color 0.15s;
+  transition: transform 0.06s, background 0.15s, border-color 0.15s, box-shadow 0.15s, color 0.15s;
   white-space: nowrap;
   line-height: 20px;
 }
@@ -1194,9 +1172,7 @@ hr {
   cursor: pointer;
   font-size: 16px;
   flex-shrink: 0;
-  transition:
-    background 0.15s,
-    color 0.15s;
+  transition: background 0.15s, color 0.15s;
 }
 .btn-icono:hover {
   background: var(--superficie-2);
@@ -1249,9 +1225,7 @@ textarea {
   width: 100%;
   min-width: 0;
   outline: none;
-  transition:
-    border-color 0.15s,
-    box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s;
 }
 input::placeholder,
 textarea::placeholder {
@@ -1270,14 +1244,14 @@ select option {
   background: var(--superficie);
   color: var(--texto);
 }
-input[type="checkbox"] {
+input[type='checkbox'] {
   width: 18px;
   height: 18px;
   accent-color: var(--rojo);
   cursor: pointer;
   flex-shrink: 0;
 }
-input[type="file"] {
+input[type='file'] {
   padding: 7px;
 }
 input:disabled,
@@ -1336,9 +1310,7 @@ input.compacto {
   background: var(--superficie-3);
   border: 1px solid var(--borde-fuerte);
   position: relative;
-  transition:
-    background 0.18s,
-    border-color 0.18s;
+  transition: background 0.18s, border-color 0.18s;
   flex-shrink: 0;
 }
 .interruptor-bola {
@@ -1454,15 +1426,9 @@ select.select-estado {
   text-transform: uppercase;
   -webkit-appearance: none;
   appearance: none;
-  background-image:
-    linear-gradient(45deg, transparent 50%, currentColor 50%),
-    linear-gradient(135deg, currentColor 50%, transparent 50%);
-  background-position:
-    calc(100% - 15px) 50%,
-    calc(100% - 10px) 50%;
-  background-size:
-    5px 5px,
-    5px 5px;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px;
   background-repeat: no-repeat;
 }
 
@@ -1657,7 +1623,7 @@ table.tabla {
   font-size: 26px;
   color: rgba(255, 255, 255, 0.35);
 }
-[data-tema="claro"] .poster-vacio {
+[data-tema='claro'] .poster-vacio {
   background: linear-gradient(160deg, #dfe6f3, #f4f3f0 60%, #f3e2e2);
   color: rgba(20, 22, 29, 0.3);
 }
@@ -2000,11 +1966,7 @@ table.tabla {
 }
 .variante.vieja {
   border-color: var(--rojo-borde);
-  background: linear-gradient(
-    90deg,
-    var(--rojo-suave),
-    var(--superficie-2) 60%
-  );
+  background: linear-gradient(90deg, var(--rojo-suave), var(--superficie-2) 60%);
 }
 .variante-fila {
   display: flex;
@@ -2171,9 +2133,7 @@ table.tabla {
   color: inherit;
   font: inherit;
   text-align: left;
-  transition:
-    border-color 0.15s,
-    transform 0.15s;
+  transition: border-color 0.15s, transform 0.15s;
 }
 .galeria-item:hover {
   border-color: var(--borde-fuerte);
@@ -2872,18 +2832,8 @@ table.tabla {
   align-items: center;
   justify-content: center;
   padding: 20px;
-  background:
-    radial-gradient(
-      900px 500px at 15% -10%,
-      rgba(229, 9, 20, 0.16),
-      transparent
-    ),
-    radial-gradient(
-      700px 420px at 110% 110%,
-      rgba(229, 169, 60, 0.12),
-      transparent
-    ),
-    var(--fondo);
+  background: radial-gradient(900px 500px at 15% -10%, rgba(229, 9, 20, 0.16), transparent),
+    radial-gradient(700px 420px at 110% 110%, rgba(229, 169, 60, 0.12), transparent), var(--fondo);
 }
 .acceso {
   width: 100%;
@@ -2902,13 +2852,7 @@ table.tabla {
 /* ═════════ PORTAL CINEPOLITOS ═════════ */
 .publico {
   min-height: 100vh;
-  background:
-    radial-gradient(
-      1100px 380px at 30% -120px,
-      rgba(229, 9, 20, 0.16),
-      transparent
-    ),
-    var(--fondo);
+  background: radial-gradient(1100px 380px at 30% -120px, rgba(229, 9, 20, 0.16), transparent), var(--fondo);
 }
 .portal {
   max-width: 1280px;
@@ -3020,23 +2964,14 @@ table.tabla {
   gap: 18px;
   padding: 22px 24px;
   border-radius: var(--r-xl);
-  background: linear-gradient(
-    100deg,
-    rgba(229, 169, 60, 0.38),
-    rgba(229, 169, 60, 0.14) 60%,
-    rgba(229, 169, 60, 0.06)
-  );
+  background: linear-gradient(100deg, rgba(229, 169, 60, 0.38), rgba(229, 169, 60, 0.14) 60%, rgba(229, 169, 60, 0.06));
   border: 1px solid var(--oro-borde);
   box-shadow: 0 10px 40px rgba(229, 169, 60, 0.14);
   margin-bottom: 18px;
   color: var(--texto-2);
 }
-[data-tema="claro"] .alerta-entrega {
-  background: linear-gradient(
-    100deg,
-    rgba(229, 169, 60, 0.3),
-    rgba(229, 169, 60, 0.1)
-  );
+[data-tema='claro'] .alerta-entrega {
+  background: linear-gradient(100deg, rgba(229, 169, 60, 0.3), rgba(229, 169, 60, 0.1));
 }
 .alerta-entrega-icono {
   width: 60px;
@@ -3127,10 +3062,7 @@ table.tabla {
   text-align: left;
   font: inherit;
   color: inherit;
-  transition:
-    border-color 0.2s,
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -3143,9 +3075,7 @@ table.tabla {
 }
 .tarjeta-poster.sel {
   border-color: var(--rojo);
-  box-shadow:
-    0 0 0 2px var(--rojo-suave),
-    var(--glow-rojo);
+  box-shadow: 0 0 0 2px var(--rojo-suave), var(--glow-rojo);
 }
 .tarjeta-poster .poster {
   cursor: pointer;
@@ -3380,10 +3310,10 @@ table.tabla {
 .hoja {
   color: #000;
   background: #fff;
-  font-family: "Inter", Arial, sans-serif;
+  font-family: 'Inter', Arial, sans-serif;
 }
 .hoja h1 {
-  font-family: "Plus Jakarta Sans", Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
   font-size: 20pt;
   font-weight: 800;
   margin: 0;
@@ -3393,7 +3323,7 @@ table.tabla {
 .hoja h2 {
   font-size: 13pt;
   margin: 14pt 0 6pt;
-  font-family: "Plus Jakarta Sans", Arial, sans-serif;
+  font-family: 'Plus Jakarta Sans', Arial, sans-serif;
   font-weight: 800;
   color: #000;
   border-bottom: 1.5pt solid #000;
@@ -3461,4 +3391,181 @@ table.tabla {
 }
 .salto {
   page-break-before: always;
+}
+
+/* ───────── Miniatura del arte en cada variante ───────── */
+.variante-mini {
+  width: 36px;
+  height: 52px;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--superficie-3);
+  border: 1px solid var(--borde);
+}
+.variante-mini img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.variante-mini.alerta-borde {
+  border-color: var(--rojo);
+  box-shadow: 0 0 0 1px var(--rojo);
+}
+
+/* ───────── Campo de contraseña con botón "mantener para ver" ───────── */
+.campo-clave {
+  position: relative;
+  display: flex;
+}
+.campo-clave input {
+  width: 100%;
+  padding-right: 46px !important;
+}
+.campo-clave .btn-ver-clave {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.campo-clave .btn-ver-clave:hover,
+.campo-clave .btn-ver-clave.activo {
+  color: var(--oro);
+  background: var(--superficie-3);
+}
+
+/* ───────── Edición manual del sugeridor ───────── */
+.editable {
+  position: relative;
+  cursor: pointer;
+  transition: outline-color 0.15s, transform 0.15s;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+.editable:hover,
+.editable:focus-visible {
+  outline-color: var(--oro);
+}
+.btn-editar-slot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+  background: rgba(10, 10, 14, 0.82);
+  color: var(--oro);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.btn-editar-slot .material-symbols-outlined {
+  font-size: 17px;
+}
+.chip-manual {
+  background: rgba(229, 169, 60, 0.16);
+  color: var(--oro);
+  border: 1px solid rgba(229, 169, 60, 0.45);
+}
+.zp-agregar {
+  border: 2px dashed var(--borde);
+  border-radius: var(--r-lg);
+  background: transparent;
+  color: var(--muted);
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+.zp-agregar:hover {
+  border-color: var(--oro);
+  color: var(--oro);
+}
+.elegir-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 52vh;
+  overflow-y: auto;
+  margin-top: 10px;
+  padding-right: 2px;
+}
+.elegir-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: var(--r-lg);
+  border: 1px solid var(--borde);
+  background: var(--superficie-2);
+  text-align: left;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  width: 100%;
+}
+.elegir-item:hover:not(:disabled) {
+  border-color: var(--oro);
+}
+.elegir-item.actual {
+  border-color: var(--verde);
+  box-shadow: inset 0 0 0 1px var(--verde);
+}
+.elegir-item:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.elegir-item .variante-mini {
+  width: 40px;
+  height: 58px;
+}
+.elegir-cuerpo {
+  flex: 1;
+  min-width: 0;
+}
+.elegir-cuerpo b {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+}
+.elegir-cuerpo .chico {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+/* evita que el estilo genérico .vacio (pantallas vacías) deforme los espacios vacíos del sugeridor */
+.zp.vacio {
+  padding: 0;
+  text-align: left;
+  color: inherit;
+}
+.taq-item.vacio {
+  padding: 10px;
+  text-align: left;
+  color: inherit;
 }

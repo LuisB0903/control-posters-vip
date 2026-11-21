@@ -3,12 +3,12 @@
  * Los primeros que lo apartaron, hasta completar las piezas que hay, quedan "Apartado #N" (en stock).
  * Los demás quedan "En fila #N": se les entrega solo si alguien de antes no lo recibe y gerencia los selecciona.
  */
-import type { Apartado, Material } from "../types";
+import type { Apartado, Material } from '../types';
 
 /** Orden de llegada: turno y, si no hay, fecha de creación */
 export function ordenLlegada(a: Apartado, b: Apartado): number {
-  const ta = typeof a.turno === "number" ? a.turno : Infinity;
-  const tb = typeof b.turno === "number" ? b.turno : Infinity;
+  const ta = typeof a.turno === 'number' ? a.turno : Infinity;
+  const tb = typeof b.turno === 'number' ? b.turno : Infinity;
   if (ta !== tb) return ta - tb;
   const fa = a.creadoEn ? a.creadoEn.seconds : Infinity;
   const fb = b.creadoEn ? b.creadoEn.seconds : Infinity;
@@ -26,8 +26,7 @@ export function ordenFecha(a: Apartado, b: Apartado): number {
 
 /** Piezas que cuentan para la fila: las que siguen activas y las que ya se entregaron */
 export function stockDe(piezas: { estado: string }[]): number {
-  return piezas.filter((p) => p.estado === "activa" || p.estado === "entregada")
-    .length;
+  return piezas.filter((p) => p.estado === 'activa' || p.estado === 'entregada').length;
 }
 
 export interface Lugar {
@@ -41,33 +40,22 @@ export function lugarEnFila(pos: number, stock: number): Lugar {
 }
 
 /** Posición de cada apartado (que no sea "No entregado") de un material */
-export function posicionesDeMaterial(
-  apartados: Apartado[],
-  m: Material | undefined,
-): Map<string, Lugar> {
+export function posicionesDeMaterial(apartados: Apartado[], m: Material | undefined): Map<string, Lugar> {
   const res = new Map<string, Lugar>();
   if (!m) return res;
   const stock = stockDe(m.piezas);
   apartados
-    .filter((a) => a.materialId === m.id && a.estado !== "no_entregado")
+    .filter((a) => a.materialId === m.id && a.estado !== 'no_entregado')
     .sort(ordenLlegada)
     .forEach((a, i) => res.set(a.id, lugarEnFila(i + 1, stock)));
   return res;
 }
 
 /** Posiciones de todos los apartados, de todos los materiales */
-export function posicionesTodas(
-  apartados: Apartado[],
-  materiales: Material[],
-): Map<string, Lugar> {
+export function posicionesTodas(apartados: Apartado[], materiales: Material[]): Map<string, Lugar> {
   const res = new Map<string, Lugar>();
   const porMaterial = new Map<string, Apartado[]>();
-  apartados.forEach((a) =>
-    porMaterial.set(
-      a.materialId,
-      (porMaterial.get(a.materialId) || []).concat(a),
-    ),
-  );
+  apartados.forEach((a) => porMaterial.set(a.materialId, (porMaterial.get(a.materialId) || []).concat(a)));
   porMaterial.forEach((lista, mid) => {
     const m = materiales.find((x) => x.id === mid);
     posicionesDeMaterial(lista, m).forEach((v, k) => res.set(k, v));
@@ -82,5 +70,5 @@ export function posicionPublica(turno: number, fuera: number[]): number {
 
 /** Texto corto: "Apartado #2" o "En fila #3" */
 export function textoLugar(l: Lugar): string {
-  return l.enStock ? "Apartado #" + l.pos : "En fila #" + l.fila;
+  return l.enStock ? 'Apartado #' + l.pos : 'En fila #' + l.fila;
 }

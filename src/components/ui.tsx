@@ -6,19 +6,17 @@ import {
   useRef,
   useState,
   type ReactNode,
-} from "react";
-import { createPortal } from "react-dom";
+} from 'react';
+import { createPortal } from 'react-dom';
 
 /* ════════════ TEMA CLARO / OSCURO ════════════ */
 export function useTema(): [string, () => void] {
-  const [tema, setTema] = useState<string>(
-    () => document.documentElement.getAttribute("data-tema") || "oscuro",
-  );
+  const [tema, setTema] = useState<string>(() => document.documentElement.getAttribute('data-tema') || 'oscuro');
   const alternar = useCallback(() => {
-    const nuevo = tema === "oscuro" ? "claro" : "oscuro";
-    document.documentElement.setAttribute("data-tema", nuevo);
+    const nuevo = tema === 'oscuro' ? 'claro' : 'oscuro';
+    document.documentElement.setAttribute('data-tema', nuevo);
     try {
-      localStorage.setItem("tema", nuevo);
+      localStorage.setItem('tema', nuevo);
     } catch (e) {
       /* sin almacenamiento */
     }
@@ -30,39 +28,16 @@ export function useTema(): [string, () => void] {
 export function BotonTema() {
   const [tema, alternar] = useTema();
   return (
-    <button
-      className="btn-icono"
-      onClick={alternar}
-      title={tema === "oscuro" ? "Modo claro" : "Modo oscuro"}
-      aria-label="Cambiar tema"
-    >
-      <Icono n={tema === "oscuro" ? "light_mode" : "dark_mode"} />
+    <button className="btn-icono" onClick={alternar} title={tema === 'oscuro' ? 'Modo claro' : 'Modo oscuro'} aria-label="Cambiar tema">
+      <Icono n={tema === 'oscuro' ? 'light_mode' : 'dark_mode'} />
     </button>
   );
 }
 
 /* ════════════ ÍCONOS (Material Symbols) ════════════ */
-export function Icono({
-  n,
-  className,
-  relleno,
-  title,
-}: {
-  n: string;
-  className?: string;
-  relleno?: boolean;
-  title?: string;
-}) {
+export function Icono({ n, className, relleno, title }: { n: string; className?: string; relleno?: boolean; title?: string }) {
   return (
-    <span
-      className={
-        "ico" +
-        (relleno ? " ico-relleno" : "") +
-        (className ? " " + className : "")
-      }
-      aria-hidden="true"
-      title={title}
-    >
+    <span className={'ico' + (relleno ? ' ico-relleno' : '') + (className ? ' ' + className : '')} aria-hidden="true" title={title}>
       {n}
     </span>
   );
@@ -120,27 +95,19 @@ export function Modal({
   useEffect(() => {
     if (!abierto) return;
     const esc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCerrar();
+      if (e.key === 'Escape') onCerrar();
     };
-    document.addEventListener("keydown", esc);
-    document.body.classList.add("sin-scroll");
+    document.addEventListener('keydown', esc);
+    document.body.classList.add('sin-scroll');
     return () => {
-      document.removeEventListener("keydown", esc);
-      document.body.classList.remove("sin-scroll");
+      document.removeEventListener('keydown', esc);
+      document.body.classList.remove('sin-scroll');
     };
   }, [abierto, onCerrar]);
   if (!abierto) return null;
   return createPortal(
-    <div
-      className="modal-fondo"
-      onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}
-    >
-      <div
-        className="modal"
-        style={{ maxWidth: ancho }}
-        role="dialog"
-        aria-modal="true"
-      >
+    <div className="modal-fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+      <div className="modal" style={{ maxWidth: ancho }} role="dialog" aria-modal="true">
         <div className="modal-cab">
           <h3>{titulo}</h3>
           <button className="btn-icono" onClick={onCerrar} aria-label="Cerrar">
@@ -156,7 +123,7 @@ export function Modal({
 }
 
 /* ════════════ AVISOS (TOAST) + CONFIRMAR + IMPRIMIR ════════════ */
-type TipoToast = "ok" | "error" | "info";
+type TipoToast = 'ok' | 'error' | 'info';
 interface Toast {
   id: number;
   texto: string;
@@ -181,37 +148,28 @@ const UICtx = createContext<UIValor>({
 
 export function UIProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [conf, setConf] = useState<
-    (OpcionesConfirmar & { resolver: (v: boolean) => void }) | null
-  >(null);
+  const [conf, setConf] = useState<(OpcionesConfirmar & { resolver: (v: boolean) => void }) | null>(null);
   const [impresion, setImpresion] = useState<ReactNode>(null);
   const contador = useRef(0);
 
-  const toast = useCallback((texto: string, tipo: TipoToast = "ok") => {
+  const toast = useCallback((texto: string, tipo: TipoToast = 'ok') => {
     const id = ++contador.current;
     setToasts((t) => t.concat({ id, texto, tipo }));
-    setTimeout(
-      () => setToasts((t) => t.filter((x) => x.id !== id)),
-      tipo === "error" ? 6000 : 3500,
-    );
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tipo === 'error' ? 6000 : 3500);
   }, []);
 
   const confirmar = useCallback(
-    (o: OpcionesConfirmar) =>
-      new Promise<boolean>((resolver) => setConf({ ...o, resolver })),
+    (o: OpcionesConfirmar) => new Promise<boolean>((resolver) => setConf({ ...o, resolver })),
     [],
   );
 
-  const imprimir = useCallback(
-    (contenido: ReactNode) => setImpresion(contenido),
-    [],
-  );
+  const imprimir = useCallback((contenido: ReactNode) => setImpresion(contenido), []);
 
   useEffect(() => {
     if (!impresion) return;
     const limpiar = () => setImpresion(null);
     const t = setTimeout(() => {
-      window.addEventListener("afterprint", limpiar, { once: true });
+      window.addEventListener('afterprint', limpiar, { once: true });
       window.print();
     }, 250);
     return () => clearTimeout(t);
@@ -222,21 +180,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
     setConf(null);
   };
 
-  const raizImpresion = document.getElementById("print-root");
+  const raizImpresion = document.getElementById('print-root');
 
   return (
     <UICtx.Provider value={{ toast, confirmar, imprimir }}>
       {children}
       <div className="toasts">
         {toasts.map((t) => (
-          <div key={t.id} className={"toast toast-" + t.tipo}>
+          <div key={t.id} className={'toast toast-' + t.tipo}>
             {t.texto}
           </div>
         ))}
       </div>
       <Modal
         abierto={!!conf}
-        titulo={conf ? conf.titulo : ""}
+        titulo={conf ? conf.titulo : ''}
         onCerrar={() => cerrarConf(false)}
         ancho={440}
         pie={
@@ -244,22 +202,15 @@ export function UIProvider({ children }: { children: ReactNode }) {
             <button className="btn" onClick={() => cerrarConf(false)}>
               Cancelar
             </button>
-            <button
-              className={
-                "btn " + (conf && conf.peligro ? "btn-peligro" : "btn-primario")
-              }
-              onClick={() => cerrarConf(true)}
-            >
-              {(conf && conf.aceptar) || "Aceptar"}
+            <button className={'btn ' + (conf && conf.peligro ? 'btn-peligro' : 'btn-primario')} onClick={() => cerrarConf(true)}>
+              {(conf && conf.aceptar) || 'Aceptar'}
             </button>
           </>
         }
       >
         <div className="texto-confirmar">{conf ? conf.mensaje : null}</div>
       </Modal>
-      {impresion && raizImpresion
-        ? createPortal(impresion, raizImpresion)
-        : null}
+      {impresion && raizImpresion ? createPortal(impresion, raizImpresion) : null}
     </UICtx.Provider>
   );
 }
@@ -269,7 +220,7 @@ export function useUI() {
 }
 
 /* ════════════ PIEZAS PEQUEÑAS ════════════ */
-export function Cargando({ texto = "Cargando…" }: { texto?: string }) {
+export function Cargando({ texto = 'Cargando…' }: { texto?: string }) {
   return (
     <div className="cargando">
       <span className="spinner" /> {texto}
@@ -277,15 +228,7 @@ export function Cargando({ texto = "Cargando…" }: { texto?: string }) {
   );
 }
 
-export function Vacio({
-  titulo,
-  children,
-  icono = "movie",
-}: {
-  titulo: string;
-  children?: ReactNode;
-  icono?: string;
-}) {
+export function Vacio({ titulo, children, icono = 'movie' }: { titulo: string; children?: ReactNode; icono?: string }) {
   return (
     <div className="vacio">
       <div className="vacio-icono">
@@ -297,25 +240,12 @@ export function Vacio({
   );
 }
 
-export function Poster({
-  url,
-  alt,
-  chico,
-}: {
-  url: string | null;
-  alt: string;
-  chico?: boolean;
-}) {
+export function Poster({ url, alt, chico }: { url: string | null; alt: string; chico?: boolean }) {
   const [fallo, setFallo] = useState(false);
   return (
-    <div className={"poster" + (chico ? " poster-chico" : "")}>
+    <div className={'poster' + (chico ? ' poster-chico' : '')}>
       {url && !fallo ? (
-        <img
-          src={url}
-          alt={alt}
-          loading="lazy"
-          onError={() => setFallo(true)}
-        />
+        <img src={url} alt={alt} loading="lazy" onError={() => setFallo(true)} />
       ) : (
         <div className="poster-vacio">
           <span>{alt.slice(0, 2).toUpperCase()}</span>
@@ -337,13 +267,8 @@ export function Interruptor({
   deshabilitado?: boolean;
 }) {
   return (
-    <label className={"interruptor" + (deshabilitado ? " deshabilitado" : "")}>
-      <input
-        type="checkbox"
-        checked={activo}
-        disabled={deshabilitado}
-        onChange={(e) => onCambio(e.target.checked)}
-      />
+    <label className={'interruptor' + (deshabilitado ? ' deshabilitado' : '')}>
+      <input type="checkbox" checked={activo} disabled={deshabilitado} onChange={(e) => onCambio(e.target.checked)} />
       <span className="interruptor-pista">
         <span className="interruptor-bola" />
       </span>
@@ -364,14 +289,75 @@ export function Pestanas<T extends string>({
   return (
     <div className="pestanas">
       {opciones.map((o) => (
-        <button
-          key={o.id}
-          className={"pestana" + (o.id === valor ? " activa" : "")}
-          onClick={() => onCambio(o.id)}
-        >
+        <button key={o.id} className={'pestana' + (o.id === valor ? ' activa' : '')} onClick={() => onCambio(o.id)}>
           {o.etiqueta}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Campo de contraseña: se ve en círculos y se muestra SOLO mientras mantienes presionado el ojo
+ * (con el mouse, el dedo o la barra espaciadora). Al soltar vuelve a ocultarse.
+ */
+export function CampoClave({
+  value,
+  onChange,
+  required,
+  autoComplete,
+  placeholder,
+  minLength,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  autoComplete?: string;
+  placeholder?: string;
+  minLength?: number;
+}) {
+  const [ver, setVer] = useState(false);
+  const ocultar = () => setVer(false);
+  return (
+    <div className="campo-clave">
+      <input
+        type={ver ? 'text' : 'password'}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
+        autoComplete={autoComplete || 'new-password'}
+        placeholder={placeholder}
+        minLength={minLength}
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+      />
+      <button
+        type="button"
+        className={'btn-ver-clave' + (ver ? ' activo' : '')}
+        title="Mantén presionado para ver la contraseña"
+        aria-label="Mantén presionado para ver la contraseña"
+        aria-pressed={ver}
+        onPointerDown={(e) => {
+          e.preventDefault(); // no quita el foco del campo
+          setVer(true);
+        }}
+        onPointerUp={ocultar}
+        onPointerLeave={ocultar}
+        onPointerCancel={ocultar}
+        onBlur={ocultar}
+        onKeyDown={(e) => {
+          if (e.key === ' ' || e.key === 'Enter') {
+            e.preventDefault();
+            setVer(true);
+          }
+        }}
+        onKeyUp={ocultar}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => e.preventDefault()}
+      >
+        <Icono n={ver ? 'visibility' : 'visibility_off'} />
+      </button>
     </div>
   );
 }
