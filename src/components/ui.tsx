@@ -128,6 +128,7 @@ interface Toast {
   id: number;
   texto: string;
   tipo: TipoToast;
+  saliendo?: boolean;
 }
 interface OpcionesConfirmar {
   titulo: string;
@@ -152,11 +153,21 @@ export function UIProvider({ children }: { children: ReactNode }) {
   const [impresion, setImpresion] = useState<ReactNode>(null);
   const contador = useRef(0);
 
-  const toast = useCallback((texto: string, tipo: TipoToast = 'ok') => {
-    const id = ++contador.current;
-    setToasts((t) => t.concat({ id, texto, tipo }));
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), tipo === 'error' ? 6000 : 3500);
+  /** Marca el aviso como "saliendo" (anima la salida) y lo quita al terminar */
+  const cerrarToast = useCallback((id: number) => {
+    setToasts((t) => t.map((x) => (x.id === id ? { ...x, saliendo: true } : x)));
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 180);
   }, []);
+
+  const toast = useCallback(
+    (texto: string, tipo: TipoToast = 'ok') => {
+      const id = ++contador.current;
+      // máximo 3 a la vez: el más viejo sale primero
+      setToasts((t) => t.slice(-2).concat({ id, texto, tipo }));
+      setTimeout(() => cerrarToast(id), tipo === 'error' ? 6000 : 3500);
+    },
+    [cerrarToast],
+  );
 
   const confirmar = useCallback(
     (o: OpcionesConfirmar) => new Promise<boolean>((resolver) => setConf({ ...o, resolver })),
@@ -185,10 +196,16 @@ export function UIProvider({ children }: { children: ReactNode }) {
   return (
     <UICtx.Provider value={{ toast, confirmar, imprimir }}>
       {children}
-      <div className="toasts">
+      <div className="toasts" role="status" aria-live="polite">
         {toasts.map((t) => (
-          <div key={t.id} className={'toast toast-' + t.tipo}>
-            {t.texto}
+          <div
+            key={t.id}
+            className={'toast toast-' + t.tipo + (t.saliendo ? ' saliendo' : '')}
+            onClick={() => cerrarToast(t.id)}
+            title="Toca para cerrar"
+          >
+            <Icono n={t.tipo === 'error' ? 'error' : t.tipo === 'info' ? 'info' : 'check_circle'} relleno />
+            <span>{t.texto}</span>
           </div>
         ))}
       </div>
@@ -282,18 +299,195 @@ export function Pestanas<T extends string>({
   valor,
   onCambio,
 }: {
-  opciones: { id: T; etiqueta: ReactNode }[];
+  opciones: { id: T; etiqueta: ReactNode; cuenta?: number }[];
   valor: T;
   onCambio: (v: T) => void;
 }) {
   return (
-    <div className="pestanas">
+    <div className="pestanas" role="tablist">
       {opciones.map((o) => (
-        <button key={o.id} className={'pestana' + (o.id === valor ? ' activa' : '')} onClick={() => onCambio(o.id)}>
+        <button
+          key={o.id}
+          role="tab"
+          aria-selected={o.id === valor}
+          className={'pestana' + (o.id === valor ? ' activa' : '')}
+          onClick={() => onCambio(o.id)}
+        >
           {o.etiqueta}
+          {!!o.cuenta && <span className="pestana-cuenta">{o.cuenta}</span>}
         </button>
       ))}
     </div>
+  );
+}
+
+/* ════════════ ENCABEZADO SIMPLE DE PÁGINA ════════════ */
+export function CabPagina({ titulo, desc, acciones }: { titulo: ReactNode; desc?: ReactNode; acciones?: ReactNode }) {
+  return (
+    <header className="pagina-cab">
+      <div className="pagina-cab-texto">
+        <h1>{titulo}</h1>
+        {desc && <p>{desc}</p>}
+      </div>
+      {acciones && <div className="pagina-cab-acciones">{acciones}</div>}
+    </header>
+  );
+}
+
+/* ════════════ BÚSQUEDA Y FILTROS ════════════ */
+export function Buscador({ valor, onCambio, placeholder }: { valor: string; onCambio: (v: string) => void; placeholder: string }) {
+  return (
+    <div className="buscador">
+      <Icono n="search" />
+      <input type="search" value={valor} onChange={(e) => onCambio(e.target.value)} placeholder={placeholder} aria-label={placeholder} />
+      {valor && (
+        <button type="button" className="buscador-limpiar" onClick={() => onCambio('')} aria-label="Borrar búsqueda">
+          <Icono n="close" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Filtro principal en forma de píldoras (con conteo); en celular se desliza horizontalmente */
+export function Pildoras<T extends string>({
+  opciones,
+  valor,
+  onCambio,
+  etiqueta,
+}: {
+  opciones: { id: T; texto: ReactNode; cuenta?: number }[];
+  valor: T;
+  onCambio: (v: T) => void;
+  etiqueta: string;
+}) {
+  return (
+    <div className="filtros-pildora" role="group" aria-label={etiqueta}>
+      {opciones.map((o) => (
+        <button
+          key={o.id}
+          type="button"
+          className={'pildora' + (o.id === valor ? ' activa' : '')}
+          aria-pressed={o.id === valor}
+          onClick={() => onCambio(o.id)}
+        >
+          {o.texto}
+          {o.cuenta !== undefined && <span className="cuenta">{o.cuenta}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Botón "Filtros" (solo en celular): abre o cierra el panel de filtros secundarios */
+export function BotonFiltros({ abierto, activos, onClick }: { abierto: boolean; activos: number; onClick: () => void }) {
+  return (
+    <button type="button" className={'btn boton-filtros' + (activos ? ' con-filtros' : '')} aria-expanded={abierto} onClick={onClick}>
+      <Icono n="tune" /> Filtros
+      {activos > 0 && <span className="boton-filtros-cuenta">{activos}</span>}
+    </button>
+  );
+}
+
+/** Resumen de resultados + "Limpiar filtros" */
+export function PieFiltros({ children, activos, onLimpiar }: { children: ReactNode; activos: number; onLimpiar: () => void }) {
+  return (
+    <div className="filtros-pie" aria-live="polite">
+      <span>{children}</span>
+      {activos > 0 && (
+        <button type="button" className="enlace-boton" onClick={onLimpiar}>
+          <Icono n="filter_alt_off" /> Limpiar filtros
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ════════════ MENÚ DE ACCIONES (⋮) ════════════ */
+export interface AccionMenu {
+  icono: string;
+  texto: string;
+  onClick: () => void;
+  peligro?: boolean;
+  activo?: boolean;
+}
+
+/** Acciones secundarias de un elemento. En celular se abre como hoja inferior, al alcance del pulgar. */
+export function MenuAcciones({ titulo, items }: { titulo: string; items: (AccionMenu | false | null)[] }) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!abierto) return;
+    const fuera = (e: MouseEvent | TouchEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAbierto(false);
+    };
+    document.addEventListener('mousedown', fuera);
+    document.addEventListener('touchstart', fuera);
+    document.addEventListener('keydown', esc);
+    return () => {
+      document.removeEventListener('mousedown', fuera);
+      document.removeEventListener('touchstart', fuera);
+      document.removeEventListener('keydown', esc);
+    };
+  }, [abierto]);
+  const lista = items.filter((x): x is AccionMenu => !!x);
+  return (
+    <div className="menu" ref={ref}>
+      <button
+        type="button"
+        className="btn-icono menu-boton"
+        aria-haspopup="menu"
+        aria-expanded={abierto}
+        aria-label={'Más acciones: ' + titulo}
+        title="Más acciones"
+        onClick={() => setAbierto(!abierto)}
+      >
+        <Icono n="more_vert" />
+      </button>
+      {abierto && (
+        <>
+          <div className="menu-velo" onClick={() => setAbierto(false)} />
+          <div className="menu-lista" role="menu">
+            <div className="menu-titulo">{titulo}</div>
+            {lista.map((it) => (
+              <button
+                key={it.texto}
+                type="button"
+                role="menuitem"
+                className={'menu-item' + (it.peligro ? ' peligro' : '') + (it.activo ? ' activo' : '')}
+                onClick={() => {
+                  setAbierto(false);
+                  it.onClick();
+                }}
+              >
+                <Icono n={it.icono} relleno={it.activo} />
+                <span>{it.texto}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ════════════ ESTADO DE UN APARTADO ════════════ */
+export type EstadoApartadoVisual = 'apartado' | 'seleccionado' | 'entregado' | 'no_entregado';
+const ESTADO_APARTADO: Record<EstadoApartadoVisual, { t: string; i: string; c: string }> = {
+  apartado: { t: 'Apartado', i: 'bookmark', c: 'estado-chip-apartado' },
+  seleccionado: { t: 'Seleccionado', i: 'redeem', c: 'estado-chip-seleccionado' },
+  entregado: { t: 'Entregado', i: 'task_alt', c: 'estado-chip-entregado' },
+  no_entregado: { t: 'No entregado', i: 'block', c: 'estado-chip-no' },
+};
+export function EstadoApartado({ estado }: { estado: EstadoApartadoVisual }) {
+  const e = ESTADO_APARTADO[estado];
+  return (
+    <span className={'estado-chip ' + e.c}>
+      <Icono n={e.i} /> {e.t}
+    </span>
   );
 }
 

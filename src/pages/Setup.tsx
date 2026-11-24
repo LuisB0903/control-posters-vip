@@ -1,10 +1,11 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { auth, correoDeId, db, limpiarIdAdmin } from '../firebase';
 import { CATEGORIAS_DEFAULT, CONFIG_DEFAULT } from '../types';
 import { CampoClave, Cargando, Icono } from '../components/ui';
+import { MarcoAcceso } from '../components/Acceso';
 import { errorTexto } from '../lib/utilidades';
 
 /** Pantalla que solo aparece una vez: crea al primer administrador y la configuración inicial */
@@ -67,25 +68,34 @@ export default function Setup() {
   };
 
   return (
-    <div className="centro-pantalla">
-      <form className="tarjeta acceso" onSubmit={crear} style={{ maxWidth: 440 }}>
-        <div className="marca-logo">
-          <Icono n="theaters" relleno />
-        </div>
-        <h2 className="centro">Configuración inicial</h2>
-        <p className="muted centro" style={{ marginTop: 0 }}>
-          Crea al primer administrador. Esta pantalla solo funciona una vez.
-        </p>
-        <div className="pila">
-          <label className="campo">
-            <span>ID de administrador</span>
-            <input value={id} onChange={(e) => setId(e.target.value)} placeholder="Ej. 244689 o supervisor1" required />
-            <small>Con este ID se inicia sesión. Solo letras, números, punto, guion.</small>
-          </label>
-          <label className="campo">
-            <span>Nombre completo</span>
-            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required />
-          </label>
+    <MarcoAcceso
+      titulo="Configuración inicial"
+      descripcion="Crea al primer administrador del panel. Esta pantalla solo funciona una vez."
+      pie={
+        <Link to="/admin/login">
+          <Icono n="arrow_back" /> Volver a iniciar sesión
+        </Link>
+      }
+    >
+      <ol className="ingreso-pasos" aria-label="Qué se configura">
+        <li>
+          <Icono n="person_add" /> Tu cuenta de administrador
+        </li>
+        <li>
+          <Icono n="tune" /> Configuración y categorías por defecto
+        </li>
+      </ol>
+      <form className="ingreso-form" onSubmit={crear}>
+        <label className="campo">
+          <span>ID de administrador</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} placeholder="Ej. 244689 o supervisor1" autoComplete="username" required />
+          <small>Con este ID se inicia sesión. Solo letras, números, punto y guion.</small>
+        </label>
+        <label className="campo">
+          <span>Nombre completo</span>
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="name" required />
+        </label>
+        <div className="ingreso-dos">
           <label className="campo">
             <span>Contraseña</span>
             <CampoClave value={clave} onChange={setClave} required minLength={6} />
@@ -94,12 +104,26 @@ export default function Setup() {
             <span>Repetir contraseña</span>
             <CampoClave value={clave2} onChange={setClave2} required minLength={6} />
           </label>
-          {error && <div className="alerta alerta-error">{error}</div>}
-          <button className="btn btn-primario btn-bloque" disabled={enviando}>
-            {enviando ? 'Creando…' : 'Crear administrador'}
-          </button>
         </div>
+        <small className="muted">Mínimo 6 caracteres.</small>
+        {error && (
+          <div className="ingreso-error" role="alert">
+            <Icono n="error" />
+            <span>{error}</span>
+          </div>
+        )}
+        <button className="btn btn-primario btn-bloque ingreso-enviar" disabled={enviando}>
+          {enviando ? (
+            <>
+              <span className="spinner" /> Creando…
+            </>
+          ) : (
+            <>
+              Crear administrador <Icono n="arrow_forward" />
+            </>
+          )}
+        </button>
       </form>
-    </div>
+    </MarcoAcceso>
   );
 }

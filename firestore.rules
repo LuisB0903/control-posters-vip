@@ -57,9 +57,11 @@ service cloud.firestore {
       allow read: if true;
       // Solo se puede crear una vez (primer administrador)
       allow create: if signedIn() && !exists(setupPath()) && existsAfter(adminPath());
+      // Nunca se edita ni se borra: si se borrara, cualquiera podría volver a hacer la configuración inicial
+      allow update, delete: if false;
     }
     match /config/{docId} {
-      allow read, write: if isAdmin();
+      allow read, write: if isAdmin() && docId != 'setup';
     }
     // Categorías y datos públicos (quién entrega): los ve la página de cinepolitos
     match /config/categorias {
@@ -81,13 +83,14 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    // ── Inventario (lectura pública para la página de cinepolitos) ──
+    // ── Inventario ──
+    // La página de cinepolitos no lee películas
     match /peliculas/{id} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read, write: if isAdmin();
     }
+    // Público solo lo que está publicado para cinepolitos (la consulta filtra por cinepolitos.activo == true)
     match /materiales/{id} {
-      allow read: if true;
+      allow read: if isAdmin() || resource.data.cinepolitos.activo == true;
       allow write: if isAdmin();
     }
 

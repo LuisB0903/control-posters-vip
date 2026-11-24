@@ -8,7 +8,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export async function abrirPdf(file: File) {
   const data = new Uint8Array(await file.arrayBuffer());
-  return pdfjsLib.getDocument({ data }).promise;
+  // isEvalSupported: false mitiga CVE-2024-4367 (ejecución de JS desde un PDF malicioso) en pdfjs 3.x
+  return pdfjsLib.getDocument({ data, isEvalSupported: false }).promise;
 }
 
 /** Texto plano de todas las páginas (sirve para PDFs con texto, como el reporte de horarios) */

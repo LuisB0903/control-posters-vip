@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useQuien } from '../context/AuthContext';
-import { Encabezado, Icono, useUI } from '../components/ui';
+import { CabPagina, Icono, Pestanas, useUI } from '../components/ui';
 import { HojaColocacion, ResultadoVista } from '../components/ResultadoVista';
 import { leerCronograma } from '../lib/ocr';
 import { parseCronograma, semanaDeNombre, type ListasTexto } from '../lib/parseCronograma';
@@ -339,103 +339,118 @@ export default function Sugeridor() {
 
   return (
     <div>
-      <Encabezado
-        eyebrow={
-          <>
-            <span className="chip chip-oro chip-caps">Motor de colocación</span>
-            <span className="chip chip-verde">
-              <span className="punto" /> Reglas del conjunto activas
-            </span>
-          </>
-        }
-        titulo="Sugeridor semanal de material publicitario"
-        descripcion="Colocación automática para taquilla, salas, lobby y pasillos, a partir del cronograma de punto de venta y tus reglas de distribución."
-        acciones={
-          <div className="selector-semana">
-            <div className="fila" style={{ flexWrap: 'nowrap' }}>
-              <Icono n="calendar_month" className="texto-oro" />
-              <label className="campo" style={{ flex: 1, minWidth: 150 }}>
-                <span>Semana</span>
-                <select className="compacto" value={semana} onChange={(e) => setSemana(parseInt(e.target.value, 10))}>
-                  {Array.from({ length: Math.max(52, semanasDelAnio(anio)) }, (_, i) => i + 1).map((n) => {
-                    const guardada = d.semanas.find((x) => x.id === idSemana(anio, n));
-                    return (
-                      <option key={n} value={n}>
-                        Semana {n}
-                        {anio === hoy.anio && n === hoy.semana ? ' · actual' : ''}
-                        {guardada ? (guardada.estado === 'aplicada' ? ' · aplicada' : ' · borrador') : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-              </label>
-              <label className="campo" style={{ width: 92 }}>
-                <span>Año</span>
-                <select
-                  className="compacto"
-                  value={anio}
-                  onChange={(e) => {
-                    const a = parseInt(e.target.value, 10);
-                    const max = Math.max(52, semanasDelAnio(a));
-                    setAnio(a);
-                    if (semana > max) setSemana(max);
-                  }}
-                >
-                  {[hoy.anio - 1, hoy.anio, hoy.anio + 1].map((a) => (
-                    <option key={a} value={a}>
-                      {a}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <div className="fila-entre">
-              {existente ? (
-                existente.estado === 'aplicada' ? (
-                  <span className="chip chip-verde">
-                    <Icono n="verified" /> Aplicada por {existente.aplicadaPor}
-                  </span>
-                ) : (
-                  <span className="chip chip-oro">
-                    <span className="punto punto-oro" /> Borrador guardado
-                  </span>
-                )
-              ) : (
-                <span className="chip">Semana nueva</span>
-              )}
-              <button className="btn btn-chico" onClick={guardar} disabled={ocupado}>
-                <Icono n="save" /> Guardar borrador
-              </button>
-            </div>
-          </div>
-        }
+      <CabPagina
+        titulo="Sugeridor semanal"
+        desc="Colocación para taquilla, salas, lobby y pasillos a partir del cronograma de punto de venta y las reglas del conjunto."
       />
 
-      <div className="pasos">
+      <section className="semana-barra" aria-label="Semana que se planea">
+        <div className="semana-barra-actual">
+          <button
+            type="button"
+            className="btn-icono"
+            aria-label="Semana anterior"
+            disabled={semana <= 1}
+            onClick={() => setSemana(Math.max(1, semana - 1))}
+          >
+            <Icono n="chevron_left" />
+          </button>
+          <div className="semana-barra-titulo">
+            <span className="semana-barra-num">
+              Semana {semana} <span>{anio}</span>
+            </span>
+            {existente ? (
+              existente.estado === 'aplicada' ? (
+                <span className="estado-chip estado-chip-entregado">
+                  <Icono n="verified" /> Aplicada por {existente.aplicadaPor}
+                </span>
+              ) : (
+                <span className="estado-chip estado-chip-seleccionado">
+                  <Icono n="edit_note" /> Borrador guardado
+                </span>
+              )
+            ) : (
+              <span className="estado-chip estado-chip-no">
+                <Icono n="add_circle" /> Semana nueva
+              </span>
+            )}
+            {anio === hoy.anio && semana === hoy.semana && <span className="chip chip-oro">Actual</span>}
+          </div>
+          <button
+            type="button"
+            className="btn-icono"
+            aria-label="Semana siguiente"
+            disabled={semana >= Math.max(52, semanasDelAnio(anio))}
+            onClick={() => setSemana(Math.min(Math.max(52, semanasDelAnio(anio)), semana + 1))}
+          >
+            <Icono n="chevron_right" />
+          </button>
+        </div>
+        <div className="semana-barra-controles">
+          <div className="fila" style={{ flexWrap: 'nowrap' }}>
+            <label className="campo" style={{ flex: 1, minWidth: 150 }}>
+              <span>Ir a la semana</span>
+              <select className="compacto" value={semana} onChange={(e) => setSemana(parseInt(e.target.value, 10))}>
+                {Array.from({ length: Math.max(52, semanasDelAnio(anio)) }, (_, i) => i + 1).map((n) => {
+                  const guardada = d.semanas.find((x) => x.id === idSemana(anio, n));
+                  return (
+                    <option key={n} value={n}>
+                      Semana {n}
+                      {anio === hoy.anio && n === hoy.semana ? ' · actual' : ''}
+                      {guardada ? (guardada.estado === 'aplicada' ? ' · aplicada' : ' · borrador') : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <label className="campo" style={{ width: 92 }}>
+              <span>Año</span>
+              <select
+                className="compacto"
+                value={anio}
+                onChange={(e) => {
+                  const a = parseInt(e.target.value, 10);
+                  const max = Math.max(52, semanasDelAnio(a));
+                  setAnio(a);
+                  if (semana > max) setSemana(max);
+                }}
+              >
+                {[hoy.anio - 1, hoy.anio, hoy.anio + 1].map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <button className="btn" onClick={guardar} disabled={ocupado}>
+            <Icono n="save" /> Guardar borrador
+          </button>
+        </div>
+      </section>
+
+      <ol className="pasos" aria-label="Pasos del sugeridor">
         {PASOS.map((p, i) => {
           const estado = i < idxPaso ? 'listo' : i === idxPaso ? 'activo' : '';
           return (
-            <button
-              key={p.id}
-              className={'paso ' + estado}
-              disabled={p.id === 'resultado' && !resultado}
-              onClick={() => (p.id !== 'resultado' || resultado) && setPaso(p.id)}
-            >
-              <span className="paso-n">
-                <Icono n={estado === 'listo' ? 'check' : p.i} />
-              </span>
-              <span className="paso-texto">
-                <span className="caps muted">
-                  Paso {i + 1}
-                  {estado === 'activo' ? ' · activo' : ''}
+            <li key={p.id}>
+              <button
+                type="button"
+                className={'paso ' + estado}
+                aria-current={estado === 'activo' ? 'step' : undefined}
+                disabled={p.id === 'resultado' && !resultado}
+                onClick={() => (p.id !== 'resultado' || resultado) && setPaso(p.id)}
+              >
+                <span className="paso-n">{estado === 'listo' ? <Icono n="check" /> : i + 1}</span>
+                <span className="paso-texto">
+                  <span className="paso-nombre">{p.t}</span>
+                  <span className="paso-estado">{estado === 'listo' ? 'Listo' : estado === 'activo' ? 'En curso' : 'Pendiente'}</span>
                 </span>
-                <span className="paso-nombre">{p.t}</span>
-              </span>
-              <span className="paso-estado oculto-movil">{estado === 'listo' ? 'Listo' : estado === 'activo' ? '' : 'Pendiente'}</span>
-            </button>
+              </button>
+            </li>
           );
         })}
-      </div>
+      </ol>
 
       {/* ── PASO 1 ── */}
       {paso === 'cronograma' && (
@@ -504,13 +519,20 @@ export default function Sugeridor() {
               </button>
             </div>
           </div>
-          <div className="pestanas">
-            {DEF_LISTAS.map((l) => (
-              <button key={l.k} className={'pestana' + (pestanaLista === l.k ? ' activa' : '')} onClick={() => setPestanaLista(l.k)}>
-                {l.t} <span className={'chip' + (pestanaLista === l.k ? ' chip-rojo' : '')}>{listas[l.k].length}</span>
-              </button>
-            ))}
-          </div>
+          <Pestanas<keyof ListasSemana>
+            valor={pestanaLista}
+            onCambio={setPestanaLista}
+            opciones={DEF_LISTAS.map((l) => ({
+              id: l.k,
+              etiqueta: (
+                <>
+                  {l.t}
+                  {listas[l.k].some((it) => !it.peliculaId) && <span className="pestana-alerta" title="Tiene títulos sin coincidencia" />}
+                </>
+              ),
+              cuenta: listas[l.k].length,
+            }))}
+          />
           {DEF_LISTAS.filter((l) => l.k === pestanaLista).map((l) => (
             <EditorLista
               key={l.k}
@@ -572,9 +594,7 @@ export default function Sugeridor() {
               <div className="sala" key={s.sala}>
                 <div className="fila-entre" style={{ flexWrap: 'nowrap' }}>
                   <span className="sala-num">Sala {s.sala}</span>
-                  <span className="chip chip-oro" style={{ fontSize: 9.5 }}>
-                    {d.config.pasillo13Salas.indexOf(s.sala) >= 0 ? 'Pasillo 1-3' : 'Pasillo 4-10'}
-                  </span>
+                  <span className="sala-pasillo">{d.config.pasillo13Salas.indexOf(s.sala) >= 0 ? 'Pasillo 1-3' : 'Pasillo 4-10'}</span>
                 </div>
                 {s.peliculas.length === 0 && <span className="muted chico">Sin película · publicidad</span>}
                 {s.peliculas.map((pid) => {
@@ -680,18 +700,22 @@ export default function Sugeridor() {
         <div>
           <ResultadoVista r={resultadoVivo} onEditar={editarAsignaciones} />
           <div className="barra-acciones">
-            <div className="panel-titulo">
-              <span className="icono-caja oro">
-                <Icono n={resultadoVivo.avisos.length ? 'rule' : 'verified'} />
-              </span>
+            <dl className="cifras cifras-compactas cifras-en-linea">
               <div>
-                <b className="negrita">
-                  {resultadoVivo.movimientos.length} movimiento(s) · {resultadoVivo.avisos.length} aviso(s)
-                  {cambiosManuales > 0 && <span className="texto-oro"> · {cambiosManuales} manual(es)</span>}
-                </b>
-                <p>{noRepetir ? 'Sin repetir entre pasillos' : 'Sin repetir dentro de cada pasillo'} · versión más nueva primero</p>
+                <dt>Movimientos</dt>
+                <dd>{resultadoVivo.movimientos.length}</dd>
               </div>
-            </div>
+              <div className={resultadoVivo.avisos.length ? 'cifra-alerta' : 'cifra-ok'}>
+                <dt>Avisos</dt>
+                <dd>{resultadoVivo.avisos.length}</dd>
+              </div>
+              {cambiosManuales > 0 && (
+                <div>
+                  <dt>Cambios manuales</dt>
+                  <dd>{cambiosManuales}</dd>
+                </div>
+              )}
+            </dl>
             <div className="acciones">
               <button className="btn" onClick={generar}>
                 <Icono n="refresh" /> Regenerar
@@ -757,10 +781,11 @@ function EditorLista({
             }}
           />
           <select
-            className={'compacto lista-match'}
+            className={'compacto lista-match' + (it.peliculaId ? '' : ' sin-coincidencia')}
             value={it.peliculaId || ''}
+            aria-label={'Película para "' + (it.texto || 'fila ' + (i + 1)) + '"'}
+            aria-invalid={!it.peliculaId}
             onChange={(e) => cambiar(i, { peliculaId: e.target.value || null })}
-            style={!it.peliculaId ? { borderColor: 'var(--rojo)' } : undefined}
           >
             <option value="">— Sin coincidencia (se brinca) —</option>
             {peliculas.map((p) => (
@@ -778,13 +803,13 @@ function EditorLista({
             <span />
           )}
           <div className="fila" style={{ gap: 2, flexWrap: 'nowrap' }}>
-            <button className="btn-icono chico" onClick={() => mover(i, -1)} title="Subir">
+            <button className="btn-icono chico" onClick={() => mover(i, -1)} title="Subir" aria-label="Subir">
               <Icono n="arrow_upward" />
             </button>
-            <button className="btn-icono chico" onClick={() => mover(i, 1)} title="Bajar">
+            <button className="btn-icono chico" onClick={() => mover(i, 1)} title="Bajar" aria-label="Bajar">
               <Icono n="arrow_downward" />
             </button>
-            <button className="btn-icono chico" onClick={() => onCambio(items.filter((_, j) => j !== i))} title="Quitar">
+            <button className="btn-icono chico" onClick={() => onCambio(items.filter((_, j) => j !== i))} title="Quitar" aria-label="Quitar">
               <Icono n="close" />
             </button>
           </div>

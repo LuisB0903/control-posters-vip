@@ -7,24 +7,13 @@ import { useQuien } from '../context/AuthContext';
 import { alertasVersiones, materialesVencidos } from '../lib/alertas';
 import { etiquetaUbic } from '../lib/ubicaciones';
 import { aDate, fmtFecha, fmtFechaHora, idSemana, semanaActual } from '../lib/fechas';
-import { Encabezado, Icono, Poster, useUI } from '../components/ui';
+import { Icono, Poster, useUI } from '../components/ui';
 import { etiquetaVersion, moverPiezasABodega, nombreMaterial } from '../lib/acciones';
 import { errorTexto } from '../lib/utilidades';
+import { iconoAccion } from '../lib/bitacora';
 import type { Movimiento, RolCategoria, ZonaTipo } from '../types';
 
 const DIA = 86400000;
-
-function iconoAccion(accion: string): { i: string; c: string } {
-  const a = accion.toLowerCase();
-  if (a.indexOf('sugerencia') >= 0) return { i: 'auto_awesome', c: 'rojo' };
-  if (a.indexOf('entrega') >= 0) return { i: 'task_alt', c: 'verde' };
-  if (a.indexOf('registro') >= 0 || a.indexOf('agregad') >= 0) return { i: 'add_box', c: 'oro' };
-  if (a.indexOf('movimiento') >= 0) return { i: 'swap_horiz', c: 'rojo' };
-  if (a.indexOf('desech') >= 0 || a.indexOf('elimin') >= 0) return { i: 'delete', c: 'rojo' };
-  if (a.indexOf('apartado') >= 0 || a.indexOf('seleccion') >= 0) return { i: 'bookmark', c: 'oro' };
-  if (a.indexOf('empleado') >= 0) return { i: 'badge', c: 'verde' };
-  return { i: 'history', c: '' };
-}
 
 export default function Inicio() {
   const d = useData();
@@ -114,339 +103,322 @@ export default function Inicio() {
     { tipo: 'gerencia', area: 'Vigilada', nombre: 'Gerencia', usados: porZona.gerencia || 0, total: d.config.gerenciaEspacios, icono: 'shield', desc: 'Zona vigilada' },
   ];
 
+
+  const colocadas = totalPiezas - enBodega;
+  const totalPeliculas = enCartelera + proximas;
+  const totalPendientes = alertas.length + vencidos.length;
+  const estadoSemana = semana ? (semana.estado === 'aplicada' ? 'aplicada' : 'borrador') : 'pendiente';
+
+  const accesos: { a: string; i: string; t: string; d: string }[] = [
+    { a: '/admin/inventario?registrar=1', i: 'add_circle', t: 'Registrar material', d: 'Pósters, standees y publicidad' },
+    { a: '/admin/sugeridor', i: 'auto_awesome', t: 'Sugeridor semanal', d: 'Colocación según el cronograma' },
+    { a: '/admin/cinepolitos', i: 'inventory', t: 'Apartados y entregas', d: 'Seleccionar y entregar material' },
+    { a: '/admin/empleados', i: 'badge', t: 'Empleados', d: 'Altas, bajas e importación' },
+    { a: '/admin/semanas', i: 'date_range', t: 'Historial de semanas', d: 'Cronogramas guardados' },
+  ];
+
   return (
-    <div>
-      <Encabezado
-        eyebrow={
-          <>
-            <span className="chip chip-oro chip-caps">
-              <span className="punto punto-oro latido" /> Panel operativo VIP
-            </span>
-            <span className="chip">
-              <Icono n={semana && semana.estado === 'aplicada' ? 'verified' : 'schedule'} className={semana && semana.estado === 'aplicada' ? 'texto-verde' : 'texto-oro'} />
-              Semana {hoy.semana} ({hoy.anio}) ·{' '}
+    <div className="tablero">
+      {/* ── Encabezado ── */}
+      <header className="tablero-cab">
+        <div className="tablero-cab-texto">
+          <h1>Panel de control</h1>
+          <div className="tablero-meta">
+            <span>{d.config.conjunto}</span>
+            <span className={'estado-semana estado-' + estadoSemana}>
+              <Icono n={estadoSemana === 'aplicada' ? 'verified' : estadoSemana === 'borrador' ? 'edit_note' : 'schedule'} />
+              Semana {hoy.semana} ·{' '}
               {semana
                 ? semana.estado === 'aplicada'
                   ? 'Aplicada por ' + semana.aplicadaPor + ' (' + fmtFecha(semana.aplicadaEn) + ')'
                   : 'Borrador guardado'
                 : 'Cronograma pendiente'}
             </span>
-          </>
-        }
-        titulo="Panel de control"
-        sub={'· ' + d.config.conjunto}
-        descripcion="Inventario de material publicitario, rotación semanal de pósters y apartados de los cinepolitos en un solo lugar."
-        acciones={
-          <>
-            <Link className="btn btn-primario" to="/admin/sugeridor">
-              <Icono n="auto_awesome" /> Sugeridor semanal
-            </Link>
-            <Link className="btn btn-vip" to="/admin/inventario?registrar=1">
-              <Icono n="add_circle" /> Registrar material
-            </Link>
-            <button className="btn btn-fantasma" onClick={copiar} title="Copiar enlace para cinepolitos">
-              <Icono n="content_copy" className="texto-oro" />
-              <span className="mono chico oculto-movil">{urlPublica.replace(/^https?:\/\//, '')}</span>
-              <span className="solo-movil">Copiar enlace</span>
-            </button>
-          </>
-        }
-      />
-
-      {/* ── Métricas ── */}
-      <div className="rejilla rejilla-4">
-        <div className="metrica">
-          <div className="metrica-cab">
-            <span className="caps">Inventario total</span>
-            <span className="icono-caja rojo">
-              <Icono n="inventory_2" className="ico-18" />
-            </span>
-          </div>
-          <div>
-            <div className="metrica-valor">
-              <span className="metrica-num">{totalPiezas}</span>
-              {nuevasSemana > 0 && <span className="texto-verde negrita chico">+{nuevasSemana} esta semana</span>}
-            </div>
-            <div className="metrica-desc">Piezas activas en {titulos.size} títulos y campañas</div>
-          </div>
-          <div className="metrica-pie">
-            <span>
-              <span className="punto" style={{ marginRight: 6 }} />
-              {enBodega} en bodega · {totalPiezas - enBodega} colocadas
-            </span>
           </div>
         </div>
-
-        <div className="metrica oro">
-          <div className="metrica-cab">
-            <span className="caps">Cartelera y estrenos</span>
-            <span className="icono-caja oro">
-              <Icono n="movie_filter" className="ico-18" />
-            </span>
-          </div>
-          <div>
-            <div className="metrica-valor">
-              <span className="metrica-num">{proximas}</span>
-              <span className="texto-oro negrita">Próximamente</span>
-            </div>
-            <div className="metrica-desc">{enCartelera} película(s) actualmente en cartelera</div>
-          </div>
-          <div className="barra-dividida">
-            <div style={{ width: (enCartelera + proximas ? (enCartelera / (enCartelera + proximas)) * 100 : 0) + '%' }} />
-            <div style={{ width: (enCartelera + proximas ? (proximas / (enCartelera + proximas)) * 100 : 0) + '%' }} />
-          </div>
-        </div>
-
-        <div className="metrica verde">
-          <div className="metrica-cab">
-            <span className="caps">Cinepolitos público</span>
-            <span className="icono-caja verde">
-              <Icono n="public" className="ico-18" />
-            </span>
-          </div>
-          <div>
-            <div className="metrica-valor">
-              <span className="metrica-num">{publicados.length}</span>
-              <span className="muted negrita chico">visibles al personal</span>
-            </div>
-            <div className={'metrica-desc' + (vencenPronto ? ' texto-rojo' : '')}>
-              {vencenPronto ? vencenPronto + ' vencen en menos de 15 días' : 'Ninguno vence en los próximos 15 días'}
-            </div>
-          </div>
-          <div className="metrica-pie">
-            <span>Página pública</span>
-            <span className="texto-verde">Online · Activa</span>
-          </div>
-        </div>
-
-        <div className="metrica">
-          <div className="metrica-cab">
-            <span className="caps">Apartados del personal</span>
-            <span className="icono-caja rojo">
-              <Icono n="loyalty" className="ico-18" />
-            </span>
-          </div>
-          <div>
-            <div className="metrica-valor">
-              <span className="metrica-num texto-oro">{pendientes}</span>
-              <span className="negrita">pendientes</span>
-            </div>
-            <div className="metrica-desc texto-oro">{porRecoger} seleccionado(s) por recoger</div>
-          </div>
-          <div className="metrica-pie">
-            <span>Por decidir o entregar</span>
-            <Link to="/admin/cinepolitos" className="texto-oro" style={{ textDecoration: 'none' }}>
-              Revisar lista →
-            </Link>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Versiones nuevas y vencimientos ── */}
-      <div className="rejilla rejilla-3-2" style={{ marginTop: 22 }}>
-        <div className="panel">
-          <div className="panel-cab">
-            <div className="panel-titulo">
-              <span className="icono-caja rojo">
-                <Icono n="published_with_changes" />
-              </span>
-              <div>
-                <h3>Versiones nuevas por cambiar</h3>
-                <p>Llegó una versión más nueva: retira la anterior para mantener todo actualizado.</p>
-              </div>
-            </div>
-            {alertas.length > 0 && <span className="chip chip-solido chip-caps">{alertas.length} prioritaria(s)</span>}
-          </div>
-          {alertas.length === 0 ? (
-            <div className="vacio" style={{ padding: 20 }}>
-              <div className="vacio-icono">
-                <Icono n="check_circle" className="texto-verde" />
-              </div>
-              <strong>Todo al día</strong>
-              <div className="muted chico">No hay versiones viejas colocadas.</div>
-            </div>
-          ) : (
-            <div className="lista-alertas">
-              {alertas.map((a, i) => (
-                <div key={i} className="fila-alerta">
-                  <Poster url={a.imagenUrl} alt={a.titulo} chico />
-                  <div className="fila-alerta-cuerpo">
-                    <div className="fila-alerta-titulo">
-                      {a.titulo} <span className="chip chip-verde">v{a.nueva} llegó</span>
-                    </div>
-                    <div className="fila-alerta-sub">
-                      Retirar <b>{etiquetaVersion(a.vieja, a.materialViejo.arte)}</b> ({a.categoria}) de <span className="texto-oro">{a.lugares.join(', ')}</span>
-                    </div>
-                  </div>
-                  <button className="btn btn-chico" onClick={() => moverABodega(a)}>
-                    Mover a bodega <Icono n="arrow_forward" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="panel">
-          <div className="panel-cab">
-            <div className="panel-titulo">
-              <span className="icono-caja oro">
-                <Icono n="timer" />
-              </span>
-              <div>
-                <h3>Vencimiento para cinepolitos</h3>
-                <p className="caps texto-oro" style={{ marginTop: 4 }}>
-                  Acción de desecho o entrega requerida
-                </p>
-              </div>
-            </div>
-          </div>
-          {vencidos.length === 0 ? (
-            <div className="vacio" style={{ padding: 20 }}>
-              <div className="vacio-icono">
-                <Icono n="event_available" className="texto-verde" />
-              </div>
-              <strong>Sin vencimientos</strong>
-              <div className="muted chico">Ningún material pasó su fecha de entrega o desecho.</div>
-            </div>
-          ) : (
-            vencidos.slice(0, 3).map((m) => {
-              const h = aDate(m.cinepolitos ? m.cinepolitos.hasta : null);
-              const dias = h ? Math.max(0, Math.floor((ahora - h.getTime()) / DIA)) : 0;
-              const activas = m.piezas.filter((p) => p.estado === 'activa');
-              const lugares = Array.from(new Set(activas.map((p) => etiquetaUbic(p.ubic))));
-              const abiertos = d.apartados.filter((a) => a.materialId === m.id && (a.estado === 'apartado' || a.estado === 'seleccionado')).length;
-              return (
-                <div key={m.id} className="vence-tarjeta">
-                  <div style={{ width: 64, flexShrink: 0 }}>
-                    <Poster url={m.imagenUrl} alt={m.titulo} />
-                  </div>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div className="caps muted">Fuera de exhibición</div>
-                    <div className="fila-alerta-titulo" style={{ fontSize: 17 }}>
-                      {nombreMaterial(m)}
-                    </div>
-                    <div className="texto-rojo negrita chico fila" style={{ gap: 4, marginTop: 2 }}>
-                      <Icono n="schedule" className="ico-16" /> {dias === 0 ? 'Venció hoy' : 'Venció hace ' + dias + ' día(s)'}
-                    </div>
-                    <div className="chico muted" style={{ marginTop: 4 }}>
-                      {activas.length} pieza(s) activa(s) en {lugares.join(', ')} · {abiertos} apartado(s) abierto(s)
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-          {vencidos.length > 0 && (
-            <Link to="/admin/cinepolitos" className="btn btn-oro btn-bloque mt">
-              Gestionar en entregas <Icono n="local_shipping" />
-            </Link>
-          )}
-          <div className="alerta mt" style={{ marginBottom: 0, display: 'flex', gap: 8 }}>
-            <Icono n="info" className="texto-oro ico-18" />
-            <span className="chico">Al entregar, recuerda imprimir la constancia y recabar la firma de la Gerente y del colaborador.</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Distribución ── */}
-      <div className="seccion-titulo">
-        <div>
-          <div className="caps">Mapeo del complejo</div>
-          <h2>Distribución de material por ubicación</h2>
-        </div>
-        <div className="leyenda">
-          <span>
-            <i style={{ background: 'var(--rojo)' }} /> 100% ocupado
-          </span>
-          <span>
-            <i style={{ background: 'var(--verde)' }} /> Con espacio
-          </span>
-          <span>
-            <i style={{ background: 'var(--oro)' }} /> Almacén
-          </span>
-        </div>
-      </div>
-      <div className="ubic-grid">
-        <div className="ubic">
-          <div className="ubic-cab">
-            <span className="caps">Almacén</span>
-            <Icono n="warehouse" className="texto-oro" />
-          </div>
-          <div className="ubic-num">{enBodega}</div>
-          <div className="ubic-nombre">Bodega</div>
-          <div className="ubic-desc">Material en reserva</div>
-          <div className="ubic-barra">
-            <div style={{ width: (totalPiezas ? (enBodega / totalPiezas) * 100 : 0) + '%', background: 'var(--oro)' }} />
-          </div>
-        </div>
-        {zonas.map((z) => {
-          const lleno = z.total > 0 && z.usados >= z.total;
-          const vacantes = Math.max(0, z.total - z.usados);
-          const pct = z.total ? Math.min(100, (z.usados / z.total) * 100) : 0;
-          const libre = vacantes > 0;
-          return (
-            <div key={z.tipo} className={'ubic' + (libre ? ' libre' : '')}>
-              <div className="ubic-cab">
-                <span className={'caps' + (libre ? ' texto-verde' : '')}>{libre ? vacantes + ' vacante(s)' : z.area}</span>
-                <Icono n={z.icono} className={libre ? 'texto-verde' : ''} />
-              </div>
-              <div className="ubic-num">
-                {z.usados} / {z.total}
-              </div>
-              <div className="ubic-nombre">{z.nombre}</div>
-              <div className={'ubic-desc' + (lleno ? ' texto-rojo' : '')}>{lleno ? 'Completo' : z.desc}</div>
-              <div className="ubic-barra">
-                <div
-                  style={{
-                    width: pct + '%',
-                    background: lleno ? 'var(--rojo)' : 'var(--verde)',
-                  }}
-                />
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ── Bitácora ── */}
-      <div className="panel" style={{ marginTop: 26 }}>
-        <div className="panel-cab">
-          <h3 className="fila" style={{ gap: 8 }}>
-            <span className="punto latido" /> Bitácora en tiempo real
-            <span className="muted chico" style={{ fontWeight: 500 }}>
-              · Últimos movimientos
-            </span>
-          </h3>
-          <Link to="/admin/movimientos" className="texto-oro negrita chico" style={{ textDecoration: 'none' }}>
-            Ver bitácora completa ›
+        <div className="tablero-acciones">
+          <Link className="btn" to="/admin/inventario?registrar=1">
+            <Icono n="add" /> Registrar material
+          </Link>
+          <Link className="btn btn-primario" to="/admin/sugeridor">
+            <Icono n="auto_awesome" /> Sugeridor semanal
           </Link>
         </div>
-        {recientes.length === 0 ? (
-          <p className="muted">Aún no hay movimientos registrados.</p>
-        ) : (
-          <div className="bitacora-lista">
-            {recientes.map((m) => {
-              const ic = iconoAccion(m.accion);
-              return (
-                <div key={m.id} className="bitacora-item">
-                  <span className={'icono-caja ' + ic.c}>
-                    <Icono n={ic.i} className="ico-18" />
-                  </span>
-                  <div className="bitacora-cuerpo">
-                    <div>
-                      <b>{m.adminNombre}</b> <span className="chip">{m.accion}</span>
-                    </div>
-                    <div className="chico muted" style={{ marginTop: 3 }}>
-                      {m.detalle}
-                    </div>
-                  </div>
-                  <span className="bitacora-fecha">{fmtFechaHora(m.fecha)}</span>
+      </header>
+
+      {/* ── Tarjetas resumen ── */}
+      <section className="kpis" aria-label="Resumen">
+        <Link to="/admin/inventario" className="kpi">
+          <span className="kpi-cab">
+            <span className="kpi-etiqueta">Piezas activas</span>
+            <span className="kpi-icono">
+              <Icono n="inventory_2" />
+            </span>
+          </span>
+          <span className="kpi-valor">
+            <span className="kpi-num">{totalPiezas}</span>
+            {nuevasSemana > 0 && <span className="kpi-delta">+{nuevasSemana} esta semana</span>}
+          </span>
+          <span className="kpi-desc">En {titulos.size} títulos y campañas</span>
+          <span className="kpi-pie">
+            <span>
+              <b>{colocadas}</b> colocadas
+            </span>
+            <span>
+              <b>{enBodega}</b> en bodega
+            </span>
+          </span>
+        </Link>
+
+        <Link to="/admin/inventario" className="kpi">
+          <span className="kpi-cab">
+            <span className="kpi-etiqueta">Películas</span>
+            <span className="kpi-icono">
+              <Icono n="movie_filter" />
+            </span>
+          </span>
+          <span className="kpi-valor">
+            <span className="kpi-num">{enCartelera}</span>
+            <span className="kpi-unidad">en cartelera</span>
+          </span>
+          <span className="kpi-desc">{proximas} próximamente</span>
+          <span className="kpi-barra" role="img" aria-label={enCartelera + ' en cartelera, ' + proximas + ' próximamente'}>
+            <span className="kpi-barra-a" style={{ width: (totalPeliculas ? (enCartelera / totalPeliculas) * 100 : 0) + '%' }} />
+            <span className="kpi-barra-b" style={{ width: (totalPeliculas ? (proximas / totalPeliculas) * 100 : 0) + '%' }} />
+          </span>
+        </Link>
+
+        <Link to="/admin/cinepolitos" className="kpi">
+          <span className="kpi-cab">
+            <span className="kpi-etiqueta">Publicado para cinepolitos</span>
+            <span className="kpi-icono">
+              <Icono n="public" />
+            </span>
+          </span>
+          <span className="kpi-valor">
+            <span className="kpi-num">{publicados.length}</span>
+            <span className="kpi-unidad">material(es)</span>
+          </span>
+          <span className={'kpi-desc' + (vencenPronto ? ' kpi-alerta' : '')}>
+            {vencenPronto ? (
+              <>
+                <Icono n="warning" /> {vencenPronto} vencen en menos de 15 días
+              </>
+            ) : (
+              'Ninguno vence en los próximos 15 días'
+            )}
+          </span>
+        </Link>
+
+        <Link to="/admin/cinepolitos" className={'kpi' + (pendientes ? ' kpi-destacado' : '')}>
+          <span className="kpi-cab">
+            <span className="kpi-etiqueta">Apartados pendientes</span>
+            <span className="kpi-icono">
+              <Icono n="loyalty" />
+            </span>
+          </span>
+          <span className="kpi-valor">
+            <span className="kpi-num">{pendientes}</span>
+            <span className="kpi-unidad">por decidir</span>
+          </span>
+          <span className="kpi-desc">{porRecoger} seleccionado(s) por recoger</span>
+        </Link>
+      </section>
+
+      <div className="tablero-grid">
+        <div className="tablero-col">
+          {/* ── Pendientes ── */}
+          <section className="bloque bloque-pendientes">
+            <div className="bloque-cab">
+              <h2>
+                Pendientes {totalPendientes > 0 && <span className="bloque-cuenta">{totalPendientes}</span>}
+              </h2>
+              <span className="bloque-desc">Versiones por cambiar y material vencido</span>
+            </div>
+            {totalPendientes === 0 ? (
+              <div className="bloque-vacio">
+                <Icono n="task_alt" />
+                <div>
+                  <strong>Todo al día</strong>
+                  <span>No hay versiones viejas colocadas ni material vencido.</span>
                 </div>
-              );
-            })}
-          </div>
-        )}
+              </div>
+            ) : (
+              <ul className="tareas">
+                {alertas.map((a, i) => (
+                  <li key={'v' + i} className="tarea">
+                    <span className="tarea-poster">
+                      <Poster url={a.imagenUrl} alt={a.titulo} chico />
+                    </span>
+                    <div className="tarea-cuerpo">
+                      <span className="tarea-tipo tarea-tipo-version">Versión nueva · v{a.nueva}</span>
+                      <div className="tarea-titulo">{a.titulo}</div>
+                      <div className="tarea-desc">
+                        Retirar <b>{etiquetaVersion(a.vieja, a.materialViejo.arte)}</b> ({a.categoria}) de {a.lugares.join(', ')}
+                      </div>
+                    </div>
+                    <button className="btn btn-chico" onClick={() => moverABodega(a)}>
+                      Mover a bodega
+                    </button>
+                  </li>
+                ))}
+                {vencidos.slice(0, 3).map((m) => {
+                  const h = aDate(m.cinepolitos ? m.cinepolitos.hasta : null);
+                  const dias = h ? Math.max(0, Math.floor((ahora - h.getTime()) / DIA)) : 0;
+                  const activas = m.piezas.filter((p) => p.estado === 'activa');
+                  const lugares = Array.from(new Set(activas.map((p) => etiquetaUbic(p.ubic))));
+                  const abiertos = d.apartados.filter((a) => a.materialId === m.id && (a.estado === 'apartado' || a.estado === 'seleccionado')).length;
+                  return (
+                    <li key={m.id} className="tarea">
+                      <span className="tarea-poster">
+                        <Poster url={m.imagenUrl} alt={m.titulo} chico />
+                      </span>
+                      <div className="tarea-cuerpo">
+                        <span className="tarea-tipo tarea-tipo-vencido">{dias === 0 ? 'Venció hoy' : 'Venció hace ' + dias + ' día(s)'}</span>
+                        <div className="tarea-titulo">{nombreMaterial(m)}</div>
+                        <div className="tarea-desc">
+                          {activas.length} pieza(s) activa(s) en {lugares.join(', ')} · {abiertos} apartado(s) abierto(s)
+                        </div>
+                      </div>
+                      <Link className="btn btn-chico" to="/admin/cinepolitos">
+                        Gestionar
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {vencidos.length > 3 && (
+              <Link to="/admin/cinepolitos" className="bloque-mas">
+                Ver {vencidos.length - 3} vencido(s) más <Icono n="arrow_forward" />
+              </Link>
+            )}
+            <p className="bloque-nota">
+              <Icono n="info" /> Al entregar, recuerda imprimir la constancia y recabar la firma de la Gerente y del colaborador.
+            </p>
+          </section>
+
+          {/* ── Ocupación ── */}
+          <section className="bloque bloque-ocupacion">
+            <div className="bloque-cab">
+              <h2>Ocupación por ubicación</h2>
+              <span className="bloque-desc">Carteleras y espacios del complejo</span>
+            </div>
+            <ul className="ocupacion">
+              <li className="ocupacion-fila">
+                <span className="ocupacion-icono">
+                  <Icono n="warehouse" />
+                </span>
+                <span className="ocupacion-nombre">
+                  <b>Bodega</b>
+                  <span>Material en reserva</span>
+                </span>
+                <span className="ocupacion-barra">
+                  <span style={{ width: (totalPiezas ? (enBodega / totalPiezas) * 100 : 0) + '%' }} className="ocupacion-barra-bodega" />
+                </span>
+                <span className="ocupacion-num">{enBodega}</span>
+                <span className="ocupacion-estado">pieza(s)</span>
+              </li>
+              {zonas.map((z) => {
+                const lleno = z.total > 0 && z.usados >= z.total;
+                const vacantes = Math.max(0, z.total - z.usados);
+                const pct = z.total ? Math.min(100, (z.usados / z.total) * 100) : 0;
+                return (
+                  <li key={z.tipo} className="ocupacion-fila">
+                    <span className="ocupacion-icono">
+                      <Icono n={z.icono} />
+                    </span>
+                    <span className="ocupacion-nombre">
+                      <b>{z.nombre}</b>
+                      <span>{z.desc || z.area}</span>
+                    </span>
+                    <span className="ocupacion-barra">
+                      <span style={{ width: pct + '%' }} className={lleno ? 'ocupacion-barra-llena' : 'ocupacion-barra-libre'} />
+                    </span>
+                    <span className="ocupacion-num">
+                      {z.usados}/{z.total}
+                    </span>
+                    <span className={'ocupacion-estado' + (lleno ? ' ocupacion-lleno' : vacantes > 0 ? ' ocupacion-libre' : '')}>
+                      {lleno ? 'Completo' : vacantes > 0 ? vacantes + ' libre(s)' : 'Sin espacios'}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        </div>
+
+        <div className="tablero-col">
+          {/* ── Accesos rápidos ── */}
+          <section className="bloque bloque-accesos">
+            <div className="bloque-cab">
+              <h2>Accesos rápidos</h2>
+            </div>
+            <div className="accesos">
+              {accesos.map((x) => (
+                <Link key={x.a} to={x.a} className="acceso-rapido">
+                  <span className="acceso-rapido-icono">
+                    <Icono n={x.i} />
+                  </span>
+                  <span className="acceso-rapido-texto">
+                    <b>{x.t}</b>
+                    <span>{x.d}</span>
+                  </span>
+                  <Icono n="chevron_right" className="acceso-rapido-flecha" />
+                </Link>
+              ))}
+              <button type="button" className="acceso-rapido" onClick={copiar}>
+                <span className="acceso-rapido-icono">
+                  <Icono n="link" />
+                </span>
+                <span className="acceso-rapido-texto">
+                  <b>Copiar enlace del portal</b>
+                  <span className="mono">{urlPublica.replace(/^https?:\/\//, '')}</span>
+                </span>
+                <Icono n="content_copy" className="acceso-rapido-flecha" />
+              </button>
+            </div>
+          </section>
+
+          {/* ── Actividad reciente ── */}
+          <section className="bloque bloque-actividad">
+            <div className="bloque-cab">
+              <h2>Actividad reciente</h2>
+              <Link to="/admin/movimientos" className="bloque-enlace">
+                Ver bitácora <Icono n="arrow_forward" />
+              </Link>
+            </div>
+            {recientes.length === 0 ? (
+              <div className="bloque-vacio">
+                <Icono n="history" />
+                <div>
+                  <strong>Sin movimientos</strong>
+                  <span>Aún no hay movimientos registrados.</span>
+                </div>
+              </div>
+            ) : (
+              <ul className="actividad">
+                {recientes.map((m) => {
+                  const ic = iconoAccion(m.accion);
+                  return (
+                    <li key={m.id} className="actividad-item">
+                      <span className={'actividad-icono tono-' + (ic.c || 'neutro')}>
+                        <Icono n={ic.i} />
+                      </span>
+                      <div className="actividad-cuerpo">
+                        <div className="actividad-titulo">
+                          <b>{m.accion}</b> <span className="muted">· {m.adminNombre}</span>
+                        </div>
+                        <div className="actividad-desc">{m.detalle}</div>
+                      </div>
+                      <time className="actividad-fecha">{fmtFechaHora(m.fecha)}</time>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+        </div>
       </div>
     </div>
   );

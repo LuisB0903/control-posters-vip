@@ -1,5 +1,5 @@
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, initializeAuth, inMemoryPersistence, type Auth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { firebaseConfig } from './firebase-config';
 
@@ -9,10 +9,15 @@ export const db = getFirestore(app);
 
 export const configurado = firebaseConfig.apiKey.indexOf('PEGA_AQUI') !== 0;
 
-/** App secundaria: sirve para crear administradores sin cerrar la sesión actual */
-export function appSecundaria(): FirebaseApp {
+/**
+ * Auth secundaria: sirve para crear administradores sin cerrar la sesión actual.
+ * Vive solo en memoria: la sesión del administrador recién creado nunca se guarda en el navegador.
+ */
+export function authSecundaria(): Auth {
   const ya = getApps().find((a) => a.name === 'secundaria');
-  return ya || initializeApp(firebaseConfig, 'secundaria');
+  if (ya) return getAuth(ya);
+  const app2: FirebaseApp = initializeApp(firebaseConfig, 'secundaria');
+  return initializeAuth(app2, { persistence: inMemoryPersistence });
 }
 
 /** Los administradores entran con ID + contraseña. Internamente se usa un correo ficticio. */

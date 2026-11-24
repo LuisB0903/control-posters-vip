@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useData } from '../context/DataContext';
 import { useQuien } from '../context/AuthContext';
-import { Encabezado, Icono, Interruptor, Modal, Poster, useUI, Vacio } from '../components/ui';
+import { BotonFiltros, Buscador, CabPagina, Icono, Interruptor, MenuAcciones, Modal, PieFiltros, Pildoras, Poster, useUI, Vacio } from '../components/ui';
 import RegistrarMaterial from '../components/RegistrarMaterial';
 import {
   actualizarPelicula,
@@ -42,6 +42,7 @@ export default function Inventario() {
   const [fUbic, setFUbic] = useState('todas');
   const [verInactivas, setVerInactivas] = useState(false);
   const [editando, setEditando] = useState<Material | null>(null);
+  const [verFiltros, setVerFiltros] = useState(false);
   const [params, setParams] = useSearchParams();
 
   // Inicio → "Registrar material" abre la ventana directamente
@@ -121,68 +122,82 @@ export default function Inventario() {
 
   const totalActivas = d.materiales.reduce((a, m) => a + m.piezas.filter((x) => x.estado === 'activa').length, 0);
 
+  const activos = (fCat !== 'todas' ? 1 : 0) + (fUbic !== 'todas' ? 1 : 0) + (verInactivas ? 1 : 0);
+  const limpiar = () => {
+    setQ('');
+    setFEstado('todos');
+    setFCat('todas');
+    setFUbic('todas');
+    setVerInactivas(false);
+  };
+  const cuentaEstado = (e: 'todos' | EstadoPelicula) => d.peliculas.filter((p) => e === 'todos' || p.estado === e).length;
+
   return (
     <div>
-      <Encabezado
-        eyebrow={
-          <>
-            <span className="chip chip-oro chip-caps">Catálogo operativo VIP</span>
-            <span className="chip chip-verde">
-              <span className="punto" /> {totalActivas} piezas en piso y bodega
-            </span>
-          </>
-        }
-        titulo="Inventario de pósters y material POP"
-        descripcion={'Control de versiones, standees y ubicaciones físicas en ' + d.config.conjunto + '.'}
+      <CabPagina
+        titulo="Inventario"
+        desc={totalActivas + ' piezas activas entre piso y bodega. Versiones, standees y ubicación de cada copia.'}
         acciones={
           <button className="btn btn-primario" onClick={() => setRegistrar({ abierto: true, pelicula: null })}>
-            <Icono n="add_circle" /> Registrar material
+            <Icono n="add" /> Registrar material
           </button>
         }
-      >
-        <div className="barra-filtros">
-          <div className="buscador">
-            <Icono n="search" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título en español o título original…" />
+      />
+
+      <div className="barra-busqueda">
+        <div className="barra-busqueda-fila">
+          <Buscador valor={q} onCambio={setQ} placeholder="Buscar película" />
+          <BotonFiltros abierto={verFiltros} activos={activos} onClick={() => setVerFiltros(!verFiltros)} />
+        </div>
+        <Pildoras<'todos' | EstadoPelicula>
+          etiqueta="Estado de la película"
+          valor={fEstado}
+          onCambio={setFEstado}
+          opciones={[{ id: 'todos' as const, t: 'Todas' }, ...ESTADOS].map((e) => ({ id: e.id, texto: e.t, cuenta: cuentaEstado(e.id) }))}
+        />
+        <div className={'filtros-extra' + (verFiltros ? ' abierto' : '')}>
+          <label className="campo">
+            <span>Categoría</span>
+            <select value={fCat} onChange={(e) => setFCat(e.target.value)}>
+              <option value="todas">Todas</option>
+              {d.categorias.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="campo">
+            <span>Ubicación</span>
+            <select value={fUbic} onChange={(e) => setFUbic(e.target.value)}>
+              <option value="todas">Todas</option>
+              {opcionesUbic(d.config).map((o) => (
+                <option key={o.key} value={o.key}>
+                  {o.etiqueta}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="campo campo-interruptor">
+            <Interruptor activo={verInactivas} onCambio={setVerInactivas} etiqueta="Incluir material entregado o desechado" />
           </div>
-          <select value={fEstado} onChange={(e) => setFEstado(e.target.value as 'todos' | EstadoPelicula)}>
-            <option value="todos">Estado: todos</option>
-            {ESTADOS.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.t}
-              </option>
-            ))}
-          </select>
-          <select value={fCat} onChange={(e) => setFCat(e.target.value)}>
-            <option value="todas">Categoría: todas</option>
-            {d.categorias.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.nombre}
-              </option>
-            ))}
-          </select>
-          <select value={fUbic} onChange={(e) => setFUbic(e.target.value)}>
-            <option value="todas">Ubicación: todas</option>
-            {opcionesUbic(d.config).map((o) => (
-              <option key={o.key} value={o.key}>
-                {o.etiqueta}
-              </option>
-            ))}
-          </select>
         </div>
-        <div className="filtros-pie">
-          <Interruptor activo={verInactivas} onCambio={setVerInactivas} etiqueta="Mostrar material entregado o desechado (oculto por defecto)" />
-          <span>
-            Mostrando <b>{grupos.length}</b> película(s) y <b>{sinPelicula.length}</b> campaña(s)
-          </span>
-        </div>
-      </Encabezado>
+        <PieFiltros activos={activos + (q ? 1 : 0) + (fEstado !== 'todos' ? 1 : 0)} onLimpiar={limpiar}>
+          <b>{grupos.length}</b> película(s) y <b>{sinPelicula.length}</b> campaña(s)
+        </PieFiltros>
+      </div>
 
       {grupos.length === 0 && sinPelicula.length === 0 && (
         <div className="tarjeta">
-          <Vacio titulo="No hay material con esos filtros" icono="search_off">
-            Registra tu primer póster con el botón de arriba.
-          </Vacio>
+          {d.peliculas.length === 0 && d.materiales.length === 0 ? (
+            <Vacio titulo="Aún no hay material registrado" icono="movie">
+              Registra tu primer póster con "Registrar material".
+            </Vacio>
+          ) : (
+            <Vacio titulo="Nada coincide con esos filtros" icono="search_off">
+              Cambia la búsqueda o limpia los filtros.
+            </Vacio>
+          )}
         </div>
       )}
 
@@ -200,40 +215,26 @@ export default function Inventario() {
           <article className="peli" key={p.id}>
             <div className="peli-arte">
               {arte && arte.indexOf('data:') !== 0 && <div className="peli-arte-fondo" style={{ backgroundImage: 'url("' + arte + '")' }} />}
-              <span className={'peli-etiqueta chip chip-caps estado-' + p.estado}>
-                {p.estado === 'proximamente' ? 'Próximo estreno' : p.estado === 'cartelera' ? 'En exhibición' : 'Corrida finalizada'}
-              </span>
               <div className="poster-envoltura">
                 <Poster url={arte} alt={p.titulo} />
               </div>
-              <div className="peli-arte-pie">
-                <span>{p.tmdbId ? 'TMDB #' + p.tmdbId : 'Registro manual'}</span>
-                {abiertos > 0 ? (
-                  <span className="texto-oro">
-                    <Icono n="bookmark" className="ico-14" /> {abiertos} solicitud(es)
-                  </span>
-                ) : p.taquillera ? (
-                  <span className="texto-oro">
-                    <Icono n="star" className="ico-14" /> Taquillera
-                  </span>
-                ) : estreno ? (
-                  <span className="texto-verde">
-                    <Icono n="event" className="ico-14" /> {fmtFecha(estreno)}
-                  </span>
-                ) : null}
-              </div>
+              <span className="peli-arte-pie">{p.tmdbId ? 'TMDB #' + p.tmdbId : 'Registro manual'}</span>
             </div>
 
             <div className="peli-info">
               <div className="peli-cab">
-                <div style={{ minWidth: 0 }}>
-                  <div className="peli-titulo">{p.titulo}</div>
-                  {p.tituloOriginal && p.tituloOriginal !== p.titulo && <div className="peli-original">(Original: {p.tituloOriginal})</div>}
+                <span className="peli-mini">
+                  <Poster url={arte} alt={p.titulo} chico />
+                </span>
+                <div className="peli-cab-texto">
+                  <h2 className="peli-titulo">{p.titulo}</h2>
+                  {p.tituloOriginal && p.tituloOriginal !== p.titulo && <div className="peli-original">{p.tituloOriginal}</div>}
                 </div>
                 <div className="peli-controles">
                   <select
-                    className={'select-estado chip estado-' + p.estado}
+                    className={'select-estado estado-' + p.estado}
                     value={p.estado}
+                    aria-label={'Estado de ' + p.titulo}
                     onChange={(e) => cambiarEstado(p, e.target.value as EstadoPelicula)}
                   >
                     {ESTADOS.map((e) => (
@@ -244,38 +245,41 @@ export default function Inventario() {
                   </select>
                   <Interruptor
                     activo={p.taquillera}
-                    etiqueta={<span className="caps muted">Taquillera</span>}
+                    etiqueta="Taquillera"
                     onCambio={(v) => ejecutar(() => actualizarPelicula(quien, p, { taquillera: v }, v ? 'marcada como taquillera' : 'ya no es taquillera'))}
                   />
                 </div>
               </div>
 
-              <div className="peli-meta">
-                {estreno && (
-                  <span>
-                    <Icono n="calendar_month" className="ico-16" /> Estreno: <b className="negrita">{fmtFecha(estreno)}</b>
-                  </span>
-                )}
-                {p.estado === 'proximamente' && diasEstreno !== null && diasEstreno > 0 && (
-                  <span className="texto-verde">{diasEstreno} día(s) para el lanzamiento</span>
-                )}
-                {p.estado === 'cartelera' && (
-                  <span className="texto-verde">
-                    <span className="punto latido" /> En exhibición
-                  </span>
-                )}
-                {p.salioEn && <span>Fin de temporada: {fmtFecha(p.salioEn)}</span>}
-                {publicadoHasta && (
-                  <span className="texto-oro">
-                    <Icono n="public" className="ico-16" /> Publicado en cinepolitos hasta {fmtFecha(publicadoHasta)}
-                  </span>
-                )}
-              </div>
+              {(estreno || p.salioEn || publicadoHasta || abiertos > 0) && (
+                <ul className="peli-meta">
+                  {estreno && (
+                    <li>
+                      <Icono n="calendar_month" /> Estreno {fmtFecha(estreno)}
+                      {p.estado === 'proximamente' && diasEstreno !== null && diasEstreno > 0 && <span className="muted"> (en {diasEstreno} día(s))</span>}
+                    </li>
+                  )}
+                  {p.salioEn && (
+                    <li>
+                      <Icono n="event_busy" /> Salió {fmtFecha(p.salioEn)}
+                    </li>
+                  )}
+                  {publicadoHasta && (
+                    <li className="texto-oro">
+                      <Icono n="public" /> En el portal hasta {fmtFecha(publicadoHasta)}
+                    </li>
+                  )}
+                  {abiertos > 0 && (
+                    <li className="texto-morado">
+                      <Icono n="bookmark" /> {abiertos} apartado(s) abiertos
+                    </li>
+                  )}
+                </ul>
+              )}
 
-              <div className="peli-seccion">
-                <span className="caps">Variantes y copias físicas</span>
-                {abiertos > 0 && <span className="caps texto-verde">{abiertos} apartado(s) de empleados</span>}
-              </div>
+              <h3 className="peli-seccion">
+                Material <span>{mats.length}</span>
+              </h3>
 
               {mats.length === 0 && <p className="muted chico">Sin material registrado.</p>}
               {mats.map((m) => (
@@ -305,15 +309,10 @@ export default function Inventario() {
 
       {sinPelicula.length > 0 && (
         <>
-          <div className="seccion-titulo">
-            <div className="panel-titulo">
-              <span className="icono-caja oro">
-                <Icono n="campaign" />
-              </span>
-              <div>
-                <h2 style={{ margin: 0 }}>Publicidad del cine y campañas</h2>
-                <p>Material corporativo sin película: rellena carteleras cuando no hay póster.</p>
-              </div>
+          <div className="seccion-cab">
+            <div>
+              <h2>Publicidad del cine y campañas</h2>
+              <p>Material sin película: rellena carteleras cuando no hay póster.</p>
             </div>
             <button className="btn btn-chico" onClick={() => setRegistrar({ abierto: true, pelicula: null })}>
               <Icono n="add" /> Nueva campaña
@@ -401,7 +400,7 @@ function MaterialFila({
   const enUso = activas.filter((p) => p.ubic.tipo !== 'bodega').length;
 
   return (
-    <div className={campana ? '' : 'variante' + (colocadasViejas.length ? ' vieja' : '')}>
+    <div className={(campana ? "variante variante-campana" : "variante") + (colocadasViejas.length ? " vieja" : "")}>
       <div className="variante-fila">
         {m.imagenUrl && !campana ? (
           <span className={'variante-mini' + (colocadasViejas.length ? ' alerta-borde' : '')} title={nombreMaterial(m)}>
@@ -413,47 +412,63 @@ function MaterialFila({
           </span>
         )}
         <div className="variante-cuerpo">
-          {campana && (
-            <div className="fila-entre" style={{ marginBottom: 2 }}>
-              <span className="caps texto-oro">{cat ? cat.nombre : 'Campaña'}</span>
-              <span className="caps muted">{enUso} pieza(s) en uso</span>
+          <div className="variante-titulo">
+            {nombreMaterial(m)}
+            <span className="variante-cat">{cat ? cat.nombre : campana ? 'Campaña' : m.categoriaId}</span>
+          </div>
+          {(esVieja || (!campana && m.peliculaId && masNueva > 1) || (hermanos > 0 && !m.arte) || m.propensoRobo || publicado || (pub && pub.activo) || apartados > 0) && (
+            <div className="variante-chips">
+              {!campana && m.peliculaId && !esVieja && masNueva > 1 && (
+                <span className="chip chip-verde">
+                  <Icono n="new_releases" /> Más reciente
+                </span>
+              )}
+              {esVieja && colocadasViejas.length > 0 && (
+                <span className="chip chip-rojo">
+                  <Icono n="swap_horiz" /> Cambiar por v{masNueva}
+                </span>
+              )}
+              {esVieja && !colocadasViejas.length && <span className="chip">Versión anterior</span>}
+              {hermanos > 0 && !m.arte && (
+                <button type="button" className="chip chip-oro chip-boton" onClick={onEditar} title="Hay otro material con la misma versión. Ponle nombre al arte para distinguirlos.">
+                  <Icono n="edit" /> Ponle nombre al arte
+                </button>
+              )}
+              {m.propensoRobo && (
+                <span className="chip chip-oro" title="Solo se coloca en lobby o gerencia">
+                  <Icono n="shield_lock" /> Propenso a robo
+                </span>
+              )}
+              {publicado && (
+                <span className="chip chip-oro">
+                  <Icono n="public" /> Portal hasta {fmtFecha(pub!.hasta)}
+                </span>
+              )}
+              {pub && pub.activo && vencido(pub.hasta) && (
+                <span className="chip chip-rojo">
+                  <Icono n="event_busy" /> Venció {fmtFecha(pub.hasta)}
+                </span>
+              )}
+              {apartados > 0 && (
+                <span className="chip chip-morado">
+                  <Icono n="bookmark" /> {apartados} apartado(s)
+                </span>
+              )}
             </div>
           )}
-          <div className="variante-titulo">
-            {campana ? nombreMaterial(m) : nombreMaterial(m) + ' (' + (cat ? cat.nombre : m.categoriaId) + ')'}
-            {!campana && m.peliculaId && !esVieja && masNueva > 1 && <span className="chip chip-verde">Versión más reciente</span>}
-            {esVieja && colocadasViejas.length > 0 && <span className="chip chip-rojo">Versión anterior (cambiar)</span>}
-            {esVieja && !colocadasViejas.length && <span className="chip">Versión anterior</span>}
-            {hermanos > 0 && !m.arte && (
-              <span className="chip chip-oro" title="Hay otro material con la misma versión. Ponle nombre al arte con el lápiz para distinguirlos.">
-                <Icono n="edit" /> Ponle nombre al arte
-              </span>
-            )}
-            {m.propensoRobo && (
-              <span className="chip chip-oro" title="Solo se coloca en lobby o gerencia">
-                <Icono n="shield" /> Propenso a robo
-              </span>
-            )}
-            {publicado && <span className="chip chip-oro">Cinepolitos hasta {fmtFecha(pub!.hasta)}</span>}
-            {pub && pub.activo && vencido(pub.hasta) && <span className="chip chip-rojo">Venció {fmtFecha(pub.hasta)}</span>}
-            {apartados > 0 && <span className="chip chip-morado">{apartados} apartado(s)</span>}
-          </div>
           <div className="variante-sub">
-            <span className="texto-verde negrita">{activas.length} pieza(s) activa(s)</span>
-            {m.piezas.length !== activas.length && <span> de {m.piezas.length}</span>}
-            {ubic.length > 0 && (
-              <>
-                {' · '}Ubicaciones:{' '}
-                {ubic.map((u, i) => (
-                  <span key={u.lugar}>
-                    {i > 0 ? ', ' : ''}
-                    <b className={u.lugar === 'Bodega' ? 'muted' : ''}>{u.lugar}</b> (#{u.piezas.join(', #')})
-                  </span>
-                ))}
-              </>
-            )}
-            {m.notas ? ' · ' + m.notas : ''}
+            <span className="variante-cuenta">
+              {activas.length}
+              {m.piezas.length !== activas.length && <span className="muted"> de {m.piezas.length}</span>} pieza(s)
+              {campana && enUso > 0 && <span className="muted"> · {enUso} en uso</span>}
+            </span>
+            {ubic.map((u) => (
+              <span key={u.lugar} className={'ubic-chip' + (u.lugar === 'Bodega' ? ' ubic-bodega' : '')}>
+                {u.lugar} <span>#{u.piezas.join(', #')}</span>
+              </span>
+            ))}
           </div>
+          {m.notas && <div className="variante-notas">{m.notas}</div>}
           {colocadasViejas.length > 0 && (
             <div className="variante-aviso">
               <Icono n="warning" className="ico-16" />
@@ -472,57 +487,52 @@ function MaterialFila({
         </div>
         <div className="variante-acciones">
           {piezas.length > 0 && (
-            <button className="btn btn-chico btn-vip" onClick={() => setVerPiezas(!verPiezas)}>
-              <Icono n={verPiezas ? 'expand_less' : 'location_on'} /> {verPiezas ? 'Ocultar' : 'Ver piezas'} ({piezas.length})
+            <button className={'btn btn-chico' + (verPiezas ? ' activo' : '')} aria-expanded={verPiezas} onClick={() => setVerPiezas(!verPiezas)}>
+              <Icono n={verPiezas ? 'expand_less' : 'location_on'} /> <span className="btn-texto">Piezas</span> <span className="btn-cuenta">{piezas.length}</span>
             </button>
           )}
-          <button
-            className="btn-icono chico"
-            title={m.propensoRobo ? 'Quitar marca de propenso a robo' : 'Marcar como propenso a robo (solo lobby o gerencia)'}
-            onClick={() =>
-              ejecutar(
-                () => marcarPropensoRobo(quien, m, !m.propensoRobo),
-                m.propensoRobo ? 'Ya no es propenso a robo' : 'Marcado como propenso a robo',
-              )
-            }
-          >
-            <Icono n={m.propensoRobo ? 'shield_lock' : 'shield'} className={m.propensoRobo ? 'texto-oro' : ''} relleno={m.propensoRobo} />
-          </button>
-          <button className="btn-icono chico" title="Agregar piezas" onClick={() => setAgregar(true)}>
-            <Icono n="add_box" />
-          </button>
-          <button
-            className="btn-icono chico"
-            title={publicado ? 'Ocultar a cinepolitos' : 'Publicar a cinepolitos'}
-            onClick={() =>
-              ejecutar(
-                () => publicarParaCinepolitos(quien, m, !publicado),
-                publicado ? 'Retirado de la página de cinepolitos' : 'Publicado para cinepolitos',
-              )
-            }
-          >
-            <Icono n={publicado ? 'public_off' : 'public'} className={publicado ? 'texto-oro' : ''} />
-          </button>
-          <button className="btn-icono chico" title="Editar" onClick={onEditar}>
-            <Icono n="edit" />
-          </button>
-          <button
-            className="btn-icono chico"
-            title="Eliminar material (registro por error)"
-            onClick={async () => {
-              if (
-                await confirmar({
-                  titulo: 'Eliminar material',
-                  mensaje: '¿Eliminar "' + nombreMaterial(m) + '" y sus ' + m.piezas.length + ' pieza(s)? Úsalo solo si se registró por error.',
-                  peligro: true,
-                  aceptar: 'Eliminar',
-                })
-              )
-                ejecutar(() => eliminarMaterial(quien, m), 'Material eliminado');
-            }}
-          >
-            <Icono n="delete" />
-          </button>
+          <MenuAcciones
+            titulo={nombreMaterial(m)}
+            items={[
+              {
+                icono: publicado ? 'public_off' : 'public',
+                texto: publicado ? 'Ocultar del portal de cinepolitos' : 'Publicar en el portal de cinepolitos',
+                onClick: () =>
+                  ejecutar(
+                    () => publicarParaCinepolitos(quien, m, !publicado),
+                    publicado ? 'Retirado de la página de cinepolitos' : 'Publicado para cinepolitos',
+                  ),
+              },
+              { icono: 'add_box', texto: 'Agregar piezas', onClick: () => setAgregar(true) },
+              {
+                icono: m.propensoRobo ? 'shield_lock' : 'shield',
+                texto: m.propensoRobo ? 'Quitar "propenso a robo"' : 'Marcar como propenso a robo',
+                activo: m.propensoRobo,
+                onClick: () =>
+                  ejecutar(
+                    () => marcarPropensoRobo(quien, m, !m.propensoRobo),
+                    m.propensoRobo ? 'Ya no es propenso a robo' : 'Marcado como propenso a robo',
+                  ),
+              },
+              { icono: 'edit', texto: 'Editar material', onClick: onEditar },
+              {
+                icono: 'delete',
+                texto: 'Eliminar (registro por error)',
+                peligro: true,
+                onClick: async () => {
+                  if (
+                    await confirmar({
+                      titulo: 'Eliminar material',
+                      mensaje: '¿Eliminar "' + nombreMaterial(m) + '" y sus ' + m.piezas.length + ' pieza(s)? Úsalo solo si se registró por error.',
+                      peligro: true,
+                      aceptar: 'Eliminar',
+                    })
+                  )
+                    ejecutar(() => eliminarMaterial(quien, m), 'Material eliminado');
+                },
+              },
+            ]}
+          />
         </div>
       </div>
       {verPiezas && piezas.length > 0 && (
@@ -561,9 +571,9 @@ function MaterialFila({
                         ejecutar(() => quitarPieza(quien, m, p.n), 'Pieza quitada');
                     } else if (v) ejecutar(() => cambiarEstadoPieza(quien, m, p.n, v as EstadoPieza), 'Pieza actualizada');
                   }}
-                  title="Más opciones"
+                  aria-label={"Opciones de la pieza #" + p.n}
                 >
-                  <option value="">⋯</option>
+                  <option value="">Opciones…</option>
                   {p.estado !== 'activa' && <option value="activa">Reactivar</option>}
                   {p.estado !== 'desechada' && <option value="desechada">Marcar desechada</option>}
                   <option value="quitar">Quitar (error)</option>

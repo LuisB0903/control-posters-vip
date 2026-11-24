@@ -387,11 +387,11 @@ function ZonaPasillo({
           <p>{regla}</p>
         </div>
         {repetidos ? (
-          <span className="chip chip-rojo chip-caps">
+          <span className="chip chip-rojo">
             <Icono n="warning" /> Póster repetido
           </span>
         ) : (
-          <span className="chip chip-verde chip-caps">
+          <span className="chip chip-verde">
             <Icono n="check" /> Sin duplicados
           </span>
         )}
@@ -458,7 +458,6 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
     <EdicionCtx.Provider value={edicion}>
       <div className="seccion-titulo" style={{ marginTop: 0 }}>
         <div>
-          <div className="caps">Paso 4 · Motor ejecutado</div>
           <h2>Matriz de colocación por zonas</h2>
         </div>
         <div className="leyenda">
@@ -507,7 +506,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                 {usados(taquilla)} de {total('taquilla')} carteleras asignadas
               </p>
             </div>
-            <span className="chip chip-rojo chip-caps">Alta prioridad</span>
+            <span className="chip chip-rojo">Alta prioridad</span>
           </div>
           <div className="taq-grid">
             {taquilla.map((a, i) => (
@@ -545,7 +544,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                   Lobby {usados(lobby)} de {total('lobby')} · Gerencia {usados(gerencia)} de {total('gerencia')}
                 </p>
               </div>
-              <span className="chip chip-oro chip-caps">Antirrobo</span>
+              <span className="chip chip-oro">Antirrobo</span>
             </div>
             <div className="taq-grid">
               {vigiladas.length === 0 && !onEditar && <span className="muted chico">Sin asignaciones.</span>}
@@ -591,7 +590,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                 </h3>
                 <p>{standees.length} standee(s) asignado(s)</p>
               </div>
-              {standees.length > 0 && <span className="chip chip-verde chip-caps">OK</span>}
+              {standees.length > 0 && <span className="chip chip-verde">OK</span>}
             </div>
             {standees.length === 0 && !onEditar ? (
               <p className="muted chico" style={{ padding: '0 16px 6px' }}>

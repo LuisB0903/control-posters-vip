@@ -1,13 +1,21 @@
 import { useRef, useState } from 'react';
 import { useData } from '../context/DataContext';
 import { useQuien } from '../context/AuthContext';
-import { Interruptor, Modal, useUI, Vacio } from '../components/ui';
+import { Buscador, CabPagina, Icono, Interruptor, Modal, PieFiltros, Pildoras, useUI, Vacio } from '../components/ui';
 import { textoDePdf } from '../lib/pdf';
 import { parseEmpleados, type EmpleadoLeido } from '../lib/parseEmpleados';
 import { guardarEmpleado, importarEmpleados } from '../lib/acciones';
 import { contiene } from '../lib/texto';
 import { errorTexto } from '../lib/utilidades';
 import type { Empleado } from '../types';
+
+const iniciales = (n: string) =>
+  n
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((x) => x[0])
+    .join('');
 
 export default function Empleados() {
   const d = useData();
@@ -56,55 +64,101 @@ export default function Empleados() {
     }
   };
 
+  const activosN = d.empleados.filter((e) => e.activo).length;
+  const conApartados = (id: string) => d.apartados.filter((a) => a.empleadoId === id).length;
+
   return (
     <div>
-      <div className="cabecera">
-        <div>
-          <h1>Empleados</h1>
-          <p>Cinepolitos que pueden apartar pósters con su ID. {d.empleados.filter((e) => e.activo).length} activos.</p>
-        </div>
-        <div className="acciones">
-          <label className="btn btn-primario">
-            Importar desde PDF de horarios
-            <input ref={archivo} type="file" accept="application/pdf" className="oculto" onChange={(e) => leer(e.target.files ? e.target.files[0] : undefined)} />
-          </label>
-          <button className="btn" onClick={() => setEditar({ e: { id: '', nombre: '', activo: true }, nuevo: true })}>
-            + Agregar
-          </button>
-        </div>
-      </div>
+      <CabPagina
+        titulo="Empleados"
+        desc="Cinepolitos que pueden apartar material con su ID en el portal."
+        acciones={
+          <>
+            <button className="btn" onClick={() => setEditar({ e: { id: '', nombre: '', activo: true }, nuevo: true })}>
+              <Icono n="person_add" /> Agregar
+            </button>
+            <label className="btn btn-primario">
+              <Icono n="upload_file" /> Importar PDF de horarios
+              <input ref={archivo} type="file" accept="application/pdf" className="oculto" onChange={(e) => leer(e.target.files ? e.target.files[0] : undefined)} />
+            </label>
+          </>
+        }
+      />
 
-      <div className="tarjeta mb fila">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por ID o nombre…" style={{ maxWidth: 360 }} />
-        <Interruptor activo={verInactivos} onCambio={setVerInactivos} etiqueta="Ver inactivos" />
+      <div className="barra-busqueda">
+        <div className="barra-busqueda-fila">
+          <Buscador valor={q} onCambio={setQ} placeholder="Buscar por ID o nombre" />
+        </div>
+        <Pildoras<'activos' | 'todos'>
+          etiqueta="Estado"
+          valor={verInactivos ? 'todos' : 'activos'}
+          onCambio={(v) => setVerInactivos(v === 'todos')}
+          opciones={[
+            { id: 'activos', texto: 'Activos', cuenta: activosN },
+            { id: 'todos', texto: 'Todos (incluye inactivos)', cuenta: d.empleados.length },
+          ]}
+        />
+        <PieFiltros activos={q ? 1 : 0} onLimpiar={() => setQ('')}>
+          <b>{lista.length}</b> empleado(s)
+        </PieFiltros>
       </div>
 
       {lista.length === 0 ? (
         <div className="tarjeta">
-          <Vacio titulo="Sin empleados">Importa el PDF del horario semanal (el mismo reporte del sistema) para cargarlos.</Vacio>
+          {d.empleados.length === 0 ? (
+            <Vacio titulo="Aún no hay empleados" icono="badge">
+              Importa el PDF del horario semanal (el mismo reporte del sistema) para cargarlos.
+            </Vacio>
+          ) : (
+            <Vacio titulo="Nadie coincide con la búsqueda" icono="search_off">
+              Prueba con otro ID o nombre.
+            </Vacio>
+          )}
         </div>
       ) : (
-        <div className="tabla-envoltura">
+        <div className="tabla-envoltura tarjetas-movil">
           <table className="tabla">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Nombre</th>
+                <th>Empleado</th>
                 <th>Estado</th>
-                <th>Apartados</th>
-                <th></th>
+                <th className="num">Apartados</th>
+                <th>
+                  <span className="solo-lector">Acciones</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {lista.map((e) => (
-                <tr key={e.id}>
-                  <td className="negrita">{e.id}</td>
-                  <td>{e.nombre}</td>
-                  <td>{e.activo ? <span className="chip chip-verde">Activo</span> : <span className="chip">Inactivo</span>}</td>
-                  <td>{d.apartados.filter((a) => a.empleadoId === e.id).length}</td>
-                  <td className="derecha">
+                <tr key={e.id} className={e.activo ? '' : 'fila-inactiva'}>
+                  <td className="celda-principal">
+                    <span className="celda-material">
+                      <span className="persona-avatar" aria-hidden="true">
+                        {iniciales(e.nombre)}
+                      </span>
+                      <span className="celda-persona">
+                        <b>{e.nombre}</b>
+                        <small>ID {e.id}</small>
+                      </span>
+                    </span>
+                  </td>
+                  <td data-etiqueta="Estado">
+                    {e.activo ? (
+                      <span className="estado-chip estado-chip-entregado">
+                        <Icono n="check_circle" /> Activo
+                      </span>
+                    ) : (
+                      <span className="estado-chip estado-chip-no">
+                        <Icono n="block" /> Inactivo
+                      </span>
+                    )}
+                  </td>
+                  <td data-etiqueta="Apartados" className="num">
+                    {conApartados(e.id) || <span className="muted">0</span>}
+                  </td>
+                  <td className="derecha celda-acciones">
                     <button className="btn btn-chico" onClick={() => setEditar({ e, nuevo: false })}>
-                      Editar
+                      <Icono n="edit" /> Editar
                     </button>
                   </td>
                 </tr>
@@ -130,9 +184,24 @@ export default function Empleados() {
           </>
         }
       >
-        <p>
-          Se leyeron <b>{leidos ? leidos.length : 0}</b> empleados: <b>{nuevos.length}</b> nuevos y <b>{cambiados.length}</b> con cambios.
-        </p>
+        <dl className="cifras cifras-compactas">
+          <div>
+            <dt>Leídos</dt>
+            <dd>{leidos ? leidos.length : 0}</dd>
+          </div>
+          <div className="cifra-ok">
+            <dt>Nuevos</dt>
+            <dd>{nuevos.length}</dd>
+          </div>
+          <div>
+            <dt>Con cambios</dt>
+            <dd>{cambiados.length}</dd>
+          </div>
+          <div className={faltantes.length ? 'cifra-alerta' : ''}>
+            <dt>No aparecen</dt>
+            <dd>{faltantes.length}</dd>
+          </div>
+        </dl>
         {faltantes.length > 0 && (
           <div className="alerta alerta-info">
             {faltantes.length} empleado(s) activos no aparecen en este PDF (pueden estar de vacaciones).
@@ -148,7 +217,7 @@ export default function Empleados() {
                 <tr key={e.id}>
                   <td className="negrita">{e.id}</td>
                   <td>{e.nombre}</td>
-                  <td>{nuevos.indexOf(e) >= 0 ? <span className="chip chip-verde">Nuevo</span> : cambiados.indexOf(e) >= 0 ? <span className="chip chip-acento">Cambia</span> : null}</td>
+                  <td className="derecha">{nuevos.indexOf(e) >= 0 ? <span className="estado-chip estado-chip-entregado">Nuevo</span> : cambiados.indexOf(e) >= 0 ? <span className="estado-chip estado-chip-seleccionado">Cambia</span> : null}</td>
                 </tr>
               ))}
             </tbody>
@@ -214,7 +283,7 @@ function EditarEmpleado({
         <label className="campo">
           <span>ID de empleado</span>
           <input value={e.id} disabled={!nuevo} inputMode="numeric" onChange={(x) => setE({ ...e, id: x.target.value.replace(/\D/g, '') })} />
-          {existe && <small style={{ color: 'var(--rojo)' }}>Ese ID ya existe.</small>}
+          {existe && <small className="texto-rojo">Ese ID ya existe.</small>}
         </label>
         <label className="campo">
           <span>Nombre completo</span>

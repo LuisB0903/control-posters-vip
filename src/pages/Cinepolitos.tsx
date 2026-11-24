@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, doc, getDoc, onSnapshot, query, runTransaction, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '../firebase';
-import { BotonTema, Cargando, Icono, Modal, Poster, useUI, Vacio } from '../components/ui';
+import { BotonTema, Buscador, Cargando, Icono, Modal, Poster, useUI, Vacio } from '../components/ui';
 import { aDate, fmtFecha } from '../lib/fechas';
 import { contiene } from '../lib/texto';
 import { errorTexto } from '../lib/utilidades';
@@ -48,6 +48,8 @@ export default function Cinepolitos() {
   const [enviando, setEnviando] = useState(false);
   const [busca, setBusca] = useState('');
   const [listo, setListo] = useState<string[] | null>(null);
+  // las reglas se muestran abiertas en pantallas amplias y plegadas en el celular
+  const [reglasAbiertas] = useState(() => typeof window === 'undefined' || window.innerWidth > 720);
 
   // categorías (Póster, Standee…) y quién entrega
   useEffect(() => {
@@ -348,24 +350,27 @@ export default function Cinepolitos() {
         )}
 
         {/* ── Reglas ── */}
-        <div className="aviso-reglas">
-          <Icono n="info" />
-          <div>
-            <b>Material exclusivo de películas que salieron de cartelera.</b> Vigencia de 1 mes exacto desde su publicación.{' '}
-            <span className="texto-oro negrita">Recuerda:</span> puedes apartar varios, pero cada uno solo una vez; un apartado
-            es personal y no se puede cancelar. Los primeros en apartar, hasta completar las piezas, quedan{' '}
-            <b>apartados</b>; los demás quedan <b>en fila</b> y se les entrega si alguien de antes no lo recibe y gerencia los
-            selecciona.
-          </div>
-        </div>
+        <details className="aviso-reglas" open={reglasAbiertas}>
+          <summary>
+            <Icono n="info" /> Cómo funciona el apartado
+            <Icono n="expand_more" className="aviso-reglas-flecha" />
+          </summary>
+          <ul>
+            <li>
+              Material de películas que <b>salieron de cartelera</b>, disponible durante <b>1 mes exacto</b> desde su publicación.
+            </li>
+            <li>Puedes apartar varios, pero cada uno solo una vez. Un apartado es personal y no se puede cancelar.</li>
+            <li>
+              Los primeros en apartar, hasta completar las piezas, quedan <b>apartados</b>. Los demás quedan <b>en fila</b> y se les
+              entrega si alguien de antes no lo recibe y gerencia los selecciona.
+            </li>
+          </ul>
+        </details>
 
         {/* ── Filtros ── */}
         {posters && posters.length > 0 && (
           <div className="portal-filtros">
-            <div className="buscador">
-              <Icono n="search" />
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por película…" />
-            </div>
+            <Buscador valor={busca} onCambio={setBusca} placeholder="Buscar por película" />
             <div className="filtros-pildora">
               <button className={'pildora' + (filtroCat === 'todas' ? ' activa' : '')} onClick={() => setFiltroCat('todas')}>
                 Todos los materiales <span className="cuenta">{posters.length}</span>
@@ -379,17 +384,13 @@ export default function Cinepolitos() {
           </div>
         )}
 
-        <div className="seccion-titulo" style={{ marginTop: 0 }}>
+        <div className="seccion-cab portal-seccion">
           <div>
             <h2>
-              <span className="barra-roja" />
-              Disponibles para apartado
+              Disponibles para apartar {posters && posters.length > 0 && <span className="seccion-cuenta">{visibles.length}</span>}
             </h2>
-            <div className="muted" style={{ marginTop: 4 }}>
-              {empleado ? 'Toca las piezas que deseas apartar.' : 'Escribe tu ID de empleado arriba para poder apartar.'}
-            </div>
+            <p>{empleado ? 'Toca el material que quieres apartar y confirma abajo.' : 'Escribe tu ID de empleado arriba para poder apartar.'}</p>
           </div>
-          <span className="caps texto-oro">{conjunto}</span>
         </div>
 
         {posters === null ? (
@@ -565,7 +566,7 @@ export default function Cinepolitos() {
 
       <Modal
         abierto={!!listo}
-        titulo="¡Listo! 🎉"
+        titulo="Apartado registrado"
         onCerrar={() => setListo(null)}
         ancho={440}
         pie={
@@ -574,7 +575,7 @@ export default function Cinepolitos() {
           </button>
         }
       >
-        <p>Apartaste:</p>
+        <p>Esto quedó a tu nombre:</p>
         <ul>
           {(resultados || []).map((r) => (
             <li key={r.texto} style={{ marginBottom: 6 }}>

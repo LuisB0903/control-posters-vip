@@ -1,0 +1,11 @@
+rules_version = '2';
+
+// La app no usa Firebase Storage (las imágenes son URLs de TMDB).
+// Se niega todo para que el bucket no quede abierto por reglas de "modo de prueba".
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

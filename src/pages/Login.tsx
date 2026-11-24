@@ -4,7 +4,8 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, correoDeId, db } from '../firebase';
 import { useAuth } from '../context/AuthContext';
-import { BotonTema, CampoClave, Icono } from '../components/ui';
+import { CampoClave, Icono } from '../components/ui';
+import { MarcoAcceso } from '../components/Acceso';
 import { errorTexto } from '../lib/utilidades';
 
 export default function Login() {
@@ -37,43 +38,50 @@ export default function Login() {
   };
 
   return (
-    <div className="centro-pantalla">
-      <div style={{ position: 'fixed', top: 14, right: 14 }}>
-        <BotonTema />
-      </div>
-      <form className="tarjeta acceso" onSubmit={entrar}>
-        <div className="marca-logo">
-          <Icono n="theaters" relleno />
+    <MarcoAcceso
+      titulo="Iniciar sesión"
+      descripcion="Entra con tu ID y contraseña de administrador."
+      pie={
+        <a href="#/">
+          <Icono n="local_activity" /> Ir a la página de cinepolitos
+        </a>
+      }
+    >
+      {sinSetup && (
+        <div className="ingreso-aviso">
+          <Icono n="info" />
+          <span>
+            Aún no hay administradores. <Link to="/admin/configuracion-inicial">Crea el primero</Link>
+          </span>
         </div>
-        <h2 className="centro" style={{ marginBottom: 4 }}>
-          Control de Pósters
-        </h2>
-        <p className="muted centro" style={{ marginTop: 0 }}>
-          Panel de administración
-        </p>
-        {sinSetup && (
-          <div className="alerta alerta-info">
-            Aún no hay administradores. <Link to="/admin/configuracion-inicial">Crea el primero aquí</Link>.
+      )}
+      <form className="ingreso-form" onSubmit={entrar}>
+        <label className="campo">
+          <span>ID de administrador</span>
+          <input value={id} onChange={(e) => setId(e.target.value)} autoComplete="username" autoFocus required />
+        </label>
+        <label className="campo">
+          <span>Contraseña</span>
+          <CampoClave value={clave} onChange={setClave} autoComplete="current-password" required />
+        </label>
+        {error && (
+          <div className="ingreso-error" role="alert">
+            <Icono n="error" />
+            <span>{error}</span>
           </div>
         )}
-        <div className="pila">
-          <label className="campo">
-            <span>ID de administrador</span>
-            <input value={id} onChange={(e) => setId(e.target.value)} autoComplete="username" autoFocus required />
-          </label>
-          <label className="campo">
-            <span>Contraseña</span>
-            <CampoClave value={clave} onChange={setClave} autoComplete="current-password" required />
-          </label>
-          {error && <div className="alerta alerta-error">{error}</div>}
-          <button className="btn btn-primario btn-bloque" disabled={enviando}>
-            {enviando ? 'Entrando…' : 'Entrar'}
-          </button>
-          <a className="btn btn-fantasma btn-bloque" href="#/">
-            Ir a la página de cinepolitos
-          </a>
-        </div>
+        <button className="btn btn-primario btn-bloque ingreso-enviar" disabled={enviando}>
+          {enviando ? (
+            <>
+              <span className="spinner" /> Entrando…
+            </>
+          ) : (
+            <>
+              Entrar <Icono n="arrow_forward" />
+            </>
+          )}
+        </button>
       </form>
-    </div>
+    </MarcoAcceso>
   );
 }
