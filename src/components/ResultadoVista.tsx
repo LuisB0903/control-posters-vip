@@ -47,12 +47,35 @@ const esPasillo = (u: Ubicacion) => u.tipo === 'pasillo13' || u.tipo === 'pasill
 interface Edicion {
   activa: boolean;
   abrir: (a: Asignacion | null, zona: Ubicacion, grupo: Asignacion['grupo']) => void;
+  marcar?: (a: Asignacion) => void;
 }
 const EdicionCtx = createContext<Edicion>({ activa: false, abrir: () => {} });
 
-/** Envuelve una tarjeta: si la edición está activa, al tocarla se abre el selector de material */
-function Editable({ a, className, style, children }: { a: Asignacion; className: string; style?: CSSProperties; children: ReactNode }) {
+/** Botón del checklist: marca que el material ya quedó colocado en su lugar */
+function MarcaColocado({ a }: { a: Asignacion }) {
   const ed = useContext(EdicionCtx);
+  if (!ed.marcar || a.tipo === 'vacio') return null;
+  const si = !!a.colocado;
+  return (
+    <button
+      type="button"
+      className={'btn-colocado' + (si ? ' si' : '')}
+      aria-pressed={si}
+      onClick={(e) => {
+        e.stopPropagation();
+        ed.marcar!(a);
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      <Icono n={si ? 'check_circle' : 'radio_button_unchecked'} relleno={si} /> {si ? 'Colocado' : 'Marcar colocado'}
+    </button>
+  );
+}
+
+/** Envuelve una tarjeta: si la edición está activa, al tocarla se abre el selector de material */
+function Editable({ a, className: base, style, children }: { a: Asignacion; className: string; style?: CSSProperties; children: ReactNode }) {
+  const ed = useContext(EdicionCtx);
+  const className = base + (a.colocado && a.tipo !== 'vacio' ? ' colocado' : '');
   if (!ed.activa)
     return (
       <div className={className} style={style}>
@@ -355,6 +378,7 @@ function PosterZona({ a, codigo }: { a: Asignacion; codigo: string }) {
           ? 'Sin material'
           : a.notas[0] || 'Versión más nueva'}
       </div>
+      <MarcaColocado a={a} />
     </Editable>
   );
 }
@@ -425,12 +449,94 @@ function ZonaPasillo({
   );
 }
 
-export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEditar?: (asignaciones: Asignacion[]) => void }) {
+/** Avance del checklist de colocación, total y por zona */
+function AvanceColocacion({
+  zonas,
+  onMarcar,
+  r,
+}: {
+  zonas: { t: string; l: Asignacion[] }[];
+  onMarcar?: (asignaciones: Asignacion[]) => void;
+  r: ResultadoSugerencia;
+}) {
+  const cuenta = (l: Asignacion[]) => {
+    const reales = l.filter((a) => a.tipo !== 'vacio');
+    return { hechos: reales.filter((a) => a.colocado).length, total: reales.length };
+  };
+  const todo = cuenta(r.asignaciones);
+  if (!todo.total || (!onMarcar && !todo.hechos)) return null;
+  const pct = Math.round((todo.hechos / todo.total) * 100);
+  const completo = todo.hechos === todo.total;
+  return (
+    <div className={'checklist' + (completo ? ' completo' : '')}>
+      <div className="checklist-cab">
+        <div>
+          <h3>
+            <Icono n={completo ? 'task_alt' : 'checklist'} /> Checklist de colocación
+          </h3>
+          <p>
+            {completo
+              ? '¡Todo quedó colocado!'
+              : onMarcar
+              ? 'Marca cada póster o standee cuando ya esté en su lugar. Se guarda solo.'
+              : 'Avance registrado en esta semana.'}
+          </p>
+        </div>
+        <div className="checklist-total">
+          <b>{todo.hechos}</b> de {todo.total}
+        </div>
+      </div>
+      <div className="progreso" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Avance de colocación">
+        <div style={{ width: pct + '%' }} />
+      </div>
+      <div className="checklist-zonas">
+        {zonas.map((z) => {
+          const c = cuenta(z.l);
+          if (!c.total) return null;
+          return (
+            <span key={z.t} className={'chip' + (c.hechos === c.total ? ' chip-verde' : '')}>
+              {c.hechos === c.total && <Icono n="check" />}
+              {z.t} {c.hechos}/{c.total}
+            </span>
+          );
+        })}
+        {onMarcar && todo.hechos > 0 && (
+          <button
+            type="button"
+            className="enlace chico"
+            onClick={() => onMarcar(r.asignaciones.map((a) => (a.colocado ? { ...a, colocado: false } : a)))}
+          >
+            Desmarcar todo
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function ResultadoVista({
+  r,
+  onEditar,
+  onMarcar,
+}: {
+  r: ResultadoSugerencia;
+  onEditar?: (asignaciones: Asignacion[]) => void;
+  onMarcar?: (asignaciones: Asignacion[]) => void;
+}) {
   const d = useData();
   const [edit, setEdit] = useState<{ indice: number | null; zona: Ubicacion; grupo: Asignacion['grupo'] } | null>(null);
   const edicion: Edicion = {
     activa: !!onEditar,
     abrir: (a, zona, grupo) => setEdit({ indice: a ? r.asignaciones.indexOf(a) : null, zona, grupo }),
+    marcar: onMarcar
+      ? (a) => {
+          const i = r.asignaciones.indexOf(a);
+          if (i < 0) return;
+          const lista = r.asignaciones.slice();
+          lista[i] = { ...a, colocado: !a.colocado };
+          onMarcar(lista);
+        }
+      : undefined,
   };
   const cart = r.asignaciones.filter((a) => a.grupo === 'carteleras');
   const taquilla = cart.filter((a) => a.zona.tipo === 'taquilla');
@@ -484,6 +590,19 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
         </div>
       )}
 
+      <AvanceColocacion
+        r={r}
+        onMarcar={onMarcar}
+        zonas={[
+          { t: 'Taquilla', l: taquilla },
+          { t: 'Lobby y gerencia', l: vigiladas },
+          { t: 'Standees', l: standees },
+          { t: 'Salas', l: salas },
+          { t: 'Pasillo 1-3', l: p13 },
+          { t: 'Pasillo 4-10', l: p410 },
+        ]}
+      />
+
       {r.avisos.length > 0 && (
         <div className="alerta alerta-aviso">
           <strong>Avisos ({r.avisos.length})</strong>
@@ -526,6 +645,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                     {a.version ? 'Versión ' + etiquetaVersion(a.version, a.arte) + ' · Pieza #' + a.piezaN : a.notas.join(' · ')}
                   </div>
                   <div className="taq-pos">Taquilla #{i + 1}</div>
+                  <MarcaColocado a={a} />
                 </div>
               </Editable>
             ))}
@@ -574,6 +694,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                     {a.version ? ' ' + etiquetaVersion(a.version, a.arte) : ''}
                   </span>
                   <span className="chico muted">{a.piezaN ? 'Pieza #' + a.piezaN : ''}</span>
+                  <MarcaColocado a={a} />
                 </Editable>
               ))}
               {lobby.length < total('lobby') && <BotonAgregar zona={LOBBY} grupo="carteleras" texto="Agregar en lobby" alto={90} />}
@@ -606,6 +727,7 @@ export function ResultadoVista({ r, onEditar }: { r: ResultadoSugerencia; onEdit
                       <Lugar a={a} /> · #{a.piezaN}
                       {a.manual ? ' · manual' : ''}
                     </span>
+                    <MarcaColocado a={a} />
                   </Editable>
                 ))}
                 <BotonAgregar zona={TAQUILLA} grupo="standees" texto="Agregar standee" alto={90} />

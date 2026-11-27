@@ -4238,6 +4238,115 @@ table.tabla {
   color: inherit;
 }
 
+/* ───────── Checklist de colocación ───────── */
+.checklist {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--r-xl);
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.checklist.completo {
+  border-color: var(--verde-borde);
+  background: var(--verde-suave);
+}
+.checklist-cab {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+.checklist-cab h3 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.checklist-cab p {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+.checklist.completo .checklist-cab .ico {
+  color: var(--verde-texto);
+}
+.checklist-total {
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 13px;
+}
+.checklist-total b {
+  font-family: var(--f-titulo);
+  font-size: 22px;
+  color: var(--texto);
+}
+.checklist.completo .progreso > div {
+  background: var(--verde);
+}
+.checklist-zonas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.checklist-zonas .enlace {
+  margin-left: auto;
+}
+.btn-colocado {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 36px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: var(--r-lg);
+  border: 1px dashed var(--borde);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 120ms var(--ease-out, ease);
+}
+.btn-colocado:hover {
+  border-color: var(--verde-borde);
+  color: var(--verde-texto);
+}
+.btn-colocado:active {
+  transform: scale(0.97);
+}
+.btn-colocado .ico {
+  font-size: 18px;
+}
+.btn-colocado.si {
+  border-style: solid;
+  border-color: var(--verde-borde);
+  background: var(--verde-suave);
+  color: var(--verde-texto);
+}
+.taq-cuerpo .btn-colocado {
+  margin-top: 6px;
+}
+.colocado .poster {
+  opacity: 0.55;
+}
+.taq-item.colocado,
+.mini.colocado {
+  border-color: var(--verde-borde);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-colocado {
+    transition: none;
+  }
+}
+
 /* ═════════════ OPERACIÓN DIARIA (inventario, apartados, bitácora, portal) ═════════════ */
 .solo-lector {
   position: absolute;
@@ -5517,8 +5626,14 @@ details.aviso-reglas {
     margin: 0 -12px 14px;
     padding: 10px 12px;
     flex-direction: column;
+    /* con wrap, cada línea de una columna flex toma el ancho de su contenido
+       (las píldoras sin salto) y estira la página: el celular deja alejar el zoom */
+    flex-wrap: nowrap;
     align-items: stretch;
     gap: 10px;
+  }
+  .portal-filtros > * {
+    min-width: 0;
   }
   .portal-filtros .buscador {
     flex: none;

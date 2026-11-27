@@ -238,6 +238,24 @@ export default function Sugeridor() {
     () => (resultado ? recalcularResultado(resultado, d.materiales, d.categorias) : null),
     [resultado, d.materiales, d.categorias],
   );
+  // Checklist: marcar lo que ya se colocó. Se guarda solo (con una pausa para juntar varios toques seguidos).
+  const timerColocados = useRef<number | undefined>(undefined);
+  const marcarColocados = (asignaciones: Asignacion[]) => {
+    if (!resultado) return;
+    const nuevo = { ...resultado, asignaciones };
+    setResultado(nuevo);
+    window.clearTimeout(timerColocados.current);
+    const datos = datosSemana();
+    timerColocados.current = window.setTimeout(() => {
+      const reales = asignaciones.filter((a) => a.tipo !== 'vacio');
+      const hechos = reales.filter((a) => a.colocado).length;
+      guardarSemana(
+        quien,
+        { ...datos, resultado: limpiarResultado(recalcularResultado(nuevo, d.materiales, d.categorias)) },
+        'checklist de colocación: ' + hechos + ' de ' + reales.length + ' colocados',
+      ).catch((e) => toast('No se pudo guardar el checklist: ' + errorTexto(e), 'error'));
+    }, 1200);
+  };
   const cambiosManuales = resultado ? resultado.asignaciones.filter((a) => a.manual).length : 0;
   const editarAsignaciones = (asignaciones: Asignacion[]) => {
     if (!resultado) return;
@@ -268,6 +286,10 @@ export default function Sugeridor() {
       salas,
       noRepetir,
     });
+    // Conserva el checklist de lo que sigue igual (mismo lugar, mismo material y pieza)
+    const clave = (a: Asignacion) => a.zona.tipo + '|' + a.zona.sala + '|' + a.materialId + '#' + a.piezaN;
+    const hechos = new Set((resultado ? resultado.asignaciones : []).filter((a) => a.colocado && a.materialId).map(clave));
+    if (hechos.size) r.asignaciones = r.asignaciones.map((a) => (a.materialId && hechos.has(clave(a)) ? { ...a, colocado: true } : a));
     setResultado(r);
     setPaso('resultado');
   };
@@ -698,7 +720,7 @@ export default function Sugeridor() {
       {/* ── PASO 4 ── */}
       {paso === 'resultado' && resultadoVivo && (
         <div>
-          <ResultadoVista r={resultadoVivo} onEditar={editarAsignaciones} />
+          <ResultadoVista r={resultadoVivo} onEditar={editarAsignaciones} onMarcar={marcarColocados} />
           <div className="barra-acciones">
             <dl className="cifras cifras-compactas cifras-en-linea">
               <div>

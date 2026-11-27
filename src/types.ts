@@ -240,6 +240,7 @@ export interface Asignacion {
   imagenUrl: string | null;
   notas: string[];
   manual?: boolean; // cambiado a mano por un administrador
+  colocado?: boolean; // checklist: ya se colocó físicamente en su lugar
 }
 
 export interface MovimientoSugerido {
